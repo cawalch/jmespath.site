@@ -1,0 +1,30 @@
+{
+	"specRepoUrl": "https://github.com/jmespath-community/jmespath.spec.git",
+	"versions": [
+		{
+			"id": "current",
+			"ref": "main",
+			"label": "current",
+			"isTag": false,
+			"sourcePath": "/",
+			"includeGlobs": ["jep*.md"],
+			"excludeGlobs": [],
+			"localDocsPath": "local_docs/current",
+			"localIncludeGlobs": ["**/*.md"]
+		},
+		{
+			"id": "2015_09_05",
+			"ref": "2015-09-05-9e8d0e3",
+			"label": "2015-09-05",
+			"isTag": true,
+			"sourcePath": "/",
+			"includeGlobs": ["jep*.md"],
+			"localDocsPath": "local_docs/current",
+			"localIncludeGlobs": ["**/*.md"],
+			"localExcludeGlobs": []
+		}
+	],
+	"defaultVersionId": "current",
+	"tempDir": "build",
+	"outputDir": "dist"
+}

@@ -1,9 +1,3 @@
-content/wiki/
+dist/
+node_modules/
 build/
-public/
-resources/
-spec/
-
-\.hugo_build\.lock
-
-jp
