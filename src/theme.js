@@ -3,6 +3,7 @@
 // Module-scoped variables to hold references to DOM elements
 let _htmlElement = null;
 let _themeToggleButton = null;
+let _siteLogoImage = null; // New variable for the site logo image
 
 /**
  * Applies the visual theme ('light' or 'dark').
@@ -15,6 +16,11 @@ function applyTheme(theme) {
 
   _htmlElement.classList.toggle("dark", theme === "dark");
   _themeToggleButton.setAttribute("aria-pressed", theme === "dark");
+
+  // Update site logo image based on theme
+  if (_siteLogoImage) {
+    _siteLogoImage.src = theme === "dark" ? "favicon-dark.svg" : "favicon.svg";
+  }
 }
 
 /**
@@ -50,6 +56,13 @@ export function initializeTheme(htmlElement, themeToggleButton) {
   if (!_htmlElement || !_themeToggleButton) {
     console.error("Theme initialization failed: Missing required elements.");
     return;
+  }
+
+  // Find the site logo image by its new ID
+  _siteLogoImage = document.getElementById("site-logo");
+  if (!_siteLogoImage) {
+    console.warn("Theme initialization: Could not find site logo image element.");
+    // Continue initialization, theme switching will work for other elements
   }
 
   // Determine and apply initial theme

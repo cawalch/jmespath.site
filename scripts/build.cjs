@@ -13,20 +13,19 @@ const esbuild = require("esbuild");
 
 // Playground class names
 const PLAYGROUND_CLASSES = {
-  CONTAINER: "jmespath-playground",
-  TOGGLE_BUTTON: "playground-toggle-button",
-  CONTENT: "playground-content",
-  INPUTS: "playground-inputs",
-  LABEL: "playground-label",
-  JSON_INPUT: "json-input",
-  INVALID_JSON: "invalid-json",
-  ERROR_INLINE: "playground-error-inline",
-  QUERY_INPUT: "query-input",
-  OUTPUT_AREA: "output-area",
-  ERROR_AREA: "error-area",
-  TOGGLE_ICON: "toggle-icon",
+  container: "jmespath-playground",
+  toggleButton: "playground-toggle-button",
+  content: "playground-content",
+  inputs: "playground-inputs",
+  label: "playground-label",
+  jsonInput: "json-input",
+  invalidJson: "invalid-json",
+  errorInline: "playground-error-inline",
+  queryInput: "query-input",
+  outputArea: "output-area",
+  errorArea: "error-area",
+  toggleIcon: "toggle-icon",
 };
-
 // Header anchor class name
 const HEADER_ANCHOR_CLASS = "header-anchor";
 
@@ -95,7 +94,7 @@ function extractRawTextFromTokens(tokenList) {
   return text;
 }
 
-// A simple tag function for readability (doesn't do complex processing here)
+// A simple tag function for readability
 const html = (strings, ...values) => strings.reduce((acc, string, i) => acc + string + (values[i] === undefined ? "" : values[i]), "");
 
 /**
@@ -115,98 +114,50 @@ function renderJmespathInteractiveBlock(token, title, isExpandedInitially = fals
     try {
       JSON.parse(initialJson);
       isValidJson = true;
-    } catch {}
+    } catch {
+      //nolint: ignore invalid JSON
+    }
   }
 
   const uniqueSuffix = Math.random().toString(36).substring(2, 9);
   const jsonInputId = `json-input-${uniqueSuffix}`;
   const queryInputId = `query-input-${uniqueSuffix}`;
   const contentId = `playground-content-${uniqueSuffix}`;
-  const jsonWarningClass = !isValidJson && initialJson ? PLAYGROUND_CLASSES.INVALID_JSON : "";
-  const invalidJsonWarningHtml = !isValidJson && initialJson ? `<p class="${PLAYGROUND_CLASSES.ERROR_INLINE}">Initial JSON appears invalid.</p>` : "";
+  const jsonWarningClass = !isValidJson && initialJson ? PLAYGROUND_CLASSES.invalidJson : "";
+  const invalidJsonWarningHtml = !isValidJson && initialJson ? `<p class="${PLAYGROUND_CLASSES.errorInline}">Initial JSON appears invalid.</p>` : "";
 
-  // Determine initial ARIA expanded state and hidden attribute
   const ariaExpanded = isExpandedInitially ? "true" : "false";
   const hiddenAttribute = isExpandedInitially ? "" : " hidden";
 
-  // Use provided title or fallback
   const displayTitle = title || "Interactive Example";
 
-  return html` <div class="${PLAYGROUND_CLASSES.CONTAINER} my-6 border rounded-lg">
-    <button type="button" class="${PLAYGROUND_CLASSES.TOGGLE_BUTTON}" aria-expanded="${ariaExpanded}" aria-controls="${contentId}">
+  return html` <div class="${PLAYGROUND_CLASSES.container} my-6 border rounded-lg">
+    <button type="button" class="${PLAYGROUND_CLASSES.toggleButton}" aria-expanded="${ariaExpanded}" aria-controls="${contentId}">
       <span>${displayTitle}</span>
-      <svg class="${PLAYGROUND_CLASSES.TOGGLE_ICON}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+      <svg class="${PLAYGROUND_CLASSES.toggleIcon}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
       </svg>
     </button>
 
-    <div id="${contentId}" class="${PLAYGROUND_CLASSES.CONTENT}${hiddenAttribute}">
-      <div class="${PLAYGROUND_CLASSES.INPUTS}">
+    <div id="${contentId}" class="${PLAYGROUND_CLASSES.content}${hiddenAttribute}">
+      <div class="${PLAYGROUND_CLASSES.inputs}">
         <div>
-          <label for="${jsonInputId}" class="${PLAYGROUND_CLASSES.LABEL}">Input</label>
-          <textarea id="${jsonInputId}" class="${PLAYGROUND_CLASSES.JSON_INPUT} ${jsonWarningClass}" spellcheck="false">${initialJson}</textarea>
+          <label for="${jsonInputId}" class="${PLAYGROUND_CLASSES.label}">Input</label>
+          <textarea id="${jsonInputId}" class="${PLAYGROUND_CLASSES.jsonInput} ${jsonWarningClass}" spellcheck="false">${initialJson}</textarea>
           ${invalidJsonWarningHtml}
         </div>
         <div>
-          <label for="${queryInputId}" class="${PLAYGROUND_CLASSES.LABEL}">Query</label>
-          <textarea id="${queryInputId}" class="${PLAYGROUND_CLASSES.QUERY_INPUT}" spellcheck="false">${initialQuery}</textarea>
+          <label for="${queryInputId}" class="${PLAYGROUND_CLASSES.label}">Query</label>
+          <textarea id="${queryInputId}" class="${PLAYGROUND_CLASSES.queryInput}" spellcheck="false">${initialQuery}</textarea>
         </div>
       </div>
       <div class="mt-4">
-        <label class="${PLAYGROUND_CLASSES.LABEL}">Result</label>
-        <pre class="${PLAYGROUND_CLASSES.OUTPUT_AREA}"><code class="language-json"></code></pre>
-        <div class="${PLAYGROUND_CLASSES.ERROR_AREA}"></div>
+        <label class="${PLAYGROUND_CLASSES.label}">Result</label>
+        <pre class="${PLAYGROUND_CLASSES.outputArea}"><code class="language-json"></code></pre>
+        <div class="${PLAYGROUND_CLASSES.errorArea}"></div>
       </div>
     </div>
   </div>`;
-}
-
-/**
- * Finds files matching globs within a base path.
- * @param {string} basePath - Absolute path to the directory to search.
- * @param {string[]} includeGlobs - Array of glob patterns to include files.
- * @param {string} rootDir - For logging relative paths.
- * @param {string[]} [excludeGlobs=[]] - Array of glob patterns to exclude files.
- * @returns {string[]} - Array of matched file paths relative to basePath, sorted.
- */
-function findFiles(basePath, includeGlobs, rootDir, excludeGlobs = []) {
-  let effectiveIncludeGlobs = includeGlobs;
-  if (!Array.isArray(effectiveIncludeGlobs)) {
-    console.warn(`Warning: includeGlobs is not an array for path ${path.relative(rootDir, basePath)}. Using empty array.`);
-    effectiveIncludeGlobs = [];
-  }
-  // Ensure globs are provided if basePath exists
-  if (fs.existsSync(basePath) && effectiveIncludeGlobs.length === 0) {
-    console.warn(`Warning: No includeGlobs provided for existing path ${path.relative(rootDir, basePath)}. No files will be matched.`);
-    return [];
-  }
-  console.log(`Searching for files in ${path.relative(rootDir, basePath)} matching: ${effectiveIncludeGlobs.join(", ")}`);
-  const options = {
-    cwd: basePath,
-    nodir: true,
-    dot: false,
-    ignore: excludeGlobs || [],
-  };
-  try {
-    const files = globSync(effectiveIncludeGlobs, options);
-    console.log(`Found ${files.length} files.`);
-    files.sort();
-    return files;
-  } catch (error) {
-    console.error(`Error during glob search in ${basePath}: ${error.message}`);
-    return [];
-  }
-}
-
-function runCommand(command, cwd, rootDir) {
-  console.log(`Executing in ${path.relative(rootDir, cwd)}: ${command}`);
-  try {
-    const env = { ...process.env, GIT_TERMINAL_PROMPT: "0" };
-    execSync(command, { stdio: "inherit", cwd, env });
-  } catch (error) {
-    console.error(`Error executing command: ${command}\n${error.message}`);
-    throw error;
-  }
 }
 
 /**
@@ -267,226 +218,59 @@ marked.setOptions({
 marked.use(headingRendererExtension, jmespathInteractiveExtension);
 
 /**
- * Handles the details of a successful file processing result, updating shared data.
- * @param {{processedPage: {file: string, title: string} | null, searchDocMapEntry: {docId: number, mapEntry: object} | null, error: Error | null}} value - The fulfilled result value.
- * @param {object} context - The shared VersionProcessingContext object (mutated).
- * @param {Array<{file: string, title: string}>} processedPages - The array to accumulate navigation pages (mutated).
- * @returns {{successful: number, failed: number}} - The counts (1 successful or 1 failed).
+ * Finds files matching globs within a base path.
+ * @param {object} findOptions - Options for finding files.
+ * @param {string} findOptions.basePath - Absolute path to the directory to search.
+ * @param {string[]} findOptions.includeGlobs - Array of glob patterns to include files.
+ * @param {string[]} [findOptions.excludeGlobs=[]] - Array of glob patterns to exclude files.
+ * @param {object} buildContext - The build context containing rootDir for logging.
+ * @returns {string[]} - Array of matched file paths relative to basePath, sorted.
  */
-function handleSuccessfulFileResult(value, context, processedPages) {
-  const { processedPage, searchDocMapEntry, error } = value;
+function findFiles(findOptions, buildContext) {
+  const { basePath, includeGlobs, excludeGlobs = [] } = findOptions;
+  const { rootDir } = buildContext;
 
-  if (processedPage) {
-    processedPages.push(processedPage);
-  }
-  if (searchDocMapEntry) {
-    context.searchDocMap[searchDocMapEntry.docId] = searchDocMapEntry.mapEntry;
-  }
-
-  return { successful: error ? 0 : 1, failed: error ? 1 : 0 };
-}
-
-/**
- * Handles the result of processing a single Markdown file, updating shared data.
- * @param {PromiseSettledResult<handleFileProcessingResult | null>} result - The settled promise result for a single file.
- * @param {object} context - The shared VersionProcessingContext object (mutated).
- * @param {Array<{file: string, title: string}>} processedPages - The array to accumulate navigation pages (mutated).
- * @returns {{successful: number, failed: number}} - The counts of successful and failed files from this result.
- */
-function handleFileProcessingResult(result, context, processedPages) {
-  if (result.status === "fulfilled" && result.value) {
-    return handleSuccessfulFileResult(result.value, context, processedPages);
-  }
-  if (result.status === "rejected") {
-    console.error(`  A file processing promise was rejected unexpectedly: ${result.reason}`);
-    return { successful: 0, failed: 1 };
-  }
-  if (result.status === "fulfilled" && !result.value) {
-    return { successful: 0, failed: 1 };
+  let effectiveIncludeGlobs = includeGlobs;
+  if (!Array.isArray(effectiveIncludeGlobs)) {
+    console.warn(`Warning: includeGlobs is not an array for path ${path.relative(rootDir, basePath)}. Using empty array.`);
+    effectiveIncludeGlobs = [];
   }
 
-  return { successful: 0, failed: 0 };
-}
-
-/**
- * Parses an HTML string using node-html-parser and handles potential errors.
- * @param {string} htmlString - The HTML string to parse.
- * @param {string} identifier - Identifier for logging purposes (e.g., filename).
- * @returns {object | null} - The parsed HTML root node or null if parsing failed.
- */
-function parseHtmlString(htmlString, identifier) {
-  try {
-    const root = parse(htmlString);
-    if (!root || typeof root.querySelector !== "function") {
-      console.warn(`    HTML parsing failed for: ${identifier}.`);
-      return null;
-    }
-    return root;
-  } catch (parseError) {
-    console.error(`    Error during HTML parsing for ${identifier}: ${parseError.message}`);
-    return null;
+  if (fs.existsSync(basePath) && effectiveIncludeGlobs.length === 0) {
+    console.warn(`Warning: No includeGlobs provided for existing path ${path.relative(rootDir, basePath)}. No files will be matched.`);
+    return [];
   }
-}
-
-/**
- * Extracts the title from the first H1 element in the parsed HTML root.
- * @param {object} root - The parsed HTML root node.
- * @param {string} fallbackTitle - The title to use if no H1 is found or extractable.
- * @returns {string} - The extracted or fallback title.
- */
-function extractTitleFromHtml(root, fallbackTitle) {
-  const h1Element = root.querySelector("h1");
-  if (h1Element) {
-    const extractedTitle = extractNodeText(h1Element);
-    return extractedTitle.trim() || fallbackTitle;
-  }
-  return fallbackTitle;
-}
-
-/**
- * Extracts section headers (h2-h6) with their IDs and text from the parsed HTML root.
- * @param {object} root - The parsed HTML root node.
- * @param {string} identifier - Identifier for logging purposes.
- * @returns {Array<{id: string, text: string, level: number}>} - Array of section objects.
- */
-function extractSectionsFromHtml(root, identifier) {
-  const sections = [];
-  const headers = root.querySelectorAll("h2[id], h3[id], h4[id], h5[id], h6[id]");
-  if (headers && typeof headers[Symbol.iterator] === "function") {
-    for (const header of headers) {
-      const id = header.getAttribute("id");
-      const level = Number.parseInt(header.tagName.substring(1), 10);
-      let headerText = extractNodeText(header);
-      headerText = headerText.trim();
-
-      if (id && headerText) sections.push({ id, text: headerText, level });
-    }
-  } else {
-    console.warn(`    Could not iterate over headers in: ${identifier}`);
-  }
-  return sections;
-}
-
-/**
- * Removes elements with the playground class from the parsed HTML root.
- * @param {object} root - The parsed HTML root node (mutated).
- * @param {string} identifier - Identifier for logging purposes.
- */
-function removePlaygroundsFromHtml(root, identifier) {
-  const playgrounds = root.querySelectorAll(`.${PLAYGROUND_CLASSES.CONTAINER}`);
-  if (playgrounds && typeof playgrounds[Symbol.iterator] === "function") {
-    let removedCount = 0;
-    for (const el of playgrounds) {
-      el.remove();
-      removedCount++;
-    }
-    if (removedCount > 0) {
-      console.log(`    Removed ${removedCount} playground(s) before text extraction for: ${identifier}`);
-    }
-  }
-}
-
-/**
- * Extracts text content from the parsed HTML root.
- * @param {object} root - The parsed HTML root node.
- * @returns {string} - The extracted text content.
- */
-function extractTextFromHtml(root) {
-  return root.structuredText || root.textContent || "";
-}
-
-/**
- * Converts Markdown body to HTML, extracts H1 title, extracts raw text content (excluding playgrounds),
- * and extracts section headers (h2-h6) with their IDs and text.
- * Uses the globally configured marked instance.
- * @param {string} markdownBody - The Markdown content.
- * @param {string} fallbackTitle - Fallback title if no H1 is found.
- * @returns {{html: string, title: string, textContent: string, sections: Array}} - Processed data.
- */
-function processMarkdown(markdownBody, fallbackTitle) {
-  const htmlContent = marked.parse(markdownBody);
-
-  const root = parseHtmlString(htmlContent, fallbackTitle);
-
-  if (!root) {
-    // HTML parsing failed, return fallback data
-    return {
-      html: htmlContent,
-      title: fallbackTitle,
-      textContent: markdownBody,
-      sections: [],
-    };
-  }
-
-  const pageTitle = extractTitleFromHtml(root, fallbackTitle);
-  const sections = extractSectionsFromHtml(root, fallbackTitle);
-
-  removePlaygroundsFromHtml(root, fallbackTitle);
-
-  const textContent = extractTextFromHtml(root);
-
-  return {
-    html: htmlContent,
-    title: pageTitle,
-    textContent: textContent,
-    sections: sections,
+  console.log(`Searching for files in ${path.relative(rootDir, basePath)} matching: ${effectiveIncludeGlobs.join(", ")}`);
+  const options = {
+    cwd: basePath,
+    nodir: true,
+    dot: false,
+    ignore: excludeGlobs || [],
   };
-}
-
-/**
- * Clones or updates a Git repository to a specified path.
- * @param {string} repoUrl - The URL of the Git repository.
- * @param {string} targetPath - The path where the repository should be cloned or updated.
- * @param {string} ref - The Git reference (branch or tag) to checkout.
- * @param {string} rootDir - The root directory for relative path logging.
- * @returns {Promise<void>} - A promise that resolves when the operation is complete.
- */
-async function cloneOrUpdateRepo(repoUrl, targetPath, ref, rootDir) {
-  if (fs.existsSync(targetPath)) {
-    console.log(`Repository already exists at ${path.relative(rootDir, targetPath)}. Fetching updates...`);
-    runCommand("git fetch --all --tags --prune", targetPath, rootDir);
-  } else {
-    console.log(`Cloning ${repoUrl} (ref: ${ref}) into ${path.relative(rootDir, targetPath)}...`);
-    await mkdir(path.dirname(targetPath), { recursive: true });
-    runCommand(`git clone --no-checkout ${repoUrl} ${targetPath}`, rootDir, rootDir);
-  }
-}
-
-function checkoutRef(repoPath, ref, isTag, rootDir) {
-  console.log(`Checking out ${isTag ? "tag" : "branch"}: ${ref} in ${path.relative(rootDir, repoPath)}`);
-  runCommand(`git checkout -f ${ref}`, repoPath, rootDir);
-  runCommand("git clean -fdx", repoPath, rootDir);
-}
-
-async function performGitOperations(buildContext) {
-  console.log(`\nCleaning up old temporary directory: ${path.relative(buildContext.rootDir, buildContext.tempDir)}...`);
   try {
-    await rm(buildContext.tempDir, { recursive: true, force: true });
-    await mkdir(buildContext.tempDir, { recursive: true });
-  } catch (err) {
-    console.error(`Error cleaning temp directory ${path.relative(buildContext.rootDir, buildContext.tempDir)}: ${err.message}`);
+    const files = globSync(effectiveIncludeGlobs, options);
+    console.log(`Found ${files.length} files.`);
+    files.sort();
+    return files;
+  } catch (error) {
+    console.error(`Error during glob search in ${basePath}: ${error.message}`);
+    return [];
   }
+}
 
-  for (const version of buildContext.config.versions) {
-    console.log(`\n--- Preparing source for version: ${version.label} (ref: ${version.ref}) ---`);
-    const versionClonePath = path.join(buildContext.tempDir, version.id);
-    try {
-      await cloneOrUpdateRepo(buildContext.config.specRepoUrl, versionClonePath, version.ref, buildContext.rootDir);
-      checkoutRef(versionClonePath, version.ref, version.isTag, buildContext.rootDir);
-    } catch (gitError) {
-      console.error(`--- Error during Git operations for version ${version.label}. Skipping. ---`);
-    }
+function runCommand(command, cwd, rootDir) {
+  console.log(`Executing in ${path.relative(rootDir, cwd)}: ${command}`);
+  try {
+    const env = { ...process.env, GIT_TERMINAL_PROMPT: "0" };
+    execSync(command, { stdio: "inherit", cwd, env });
+  } catch (error) {
+    console.error(`Error executing command: ${command}\n${error.message}`);
+    throw error;
   }
-  console.log("\n--- Finished Git Operations ---");
 }
 
 /**
  * Comparator function to sort navigation pages.
- * Prioritizes pages with a defined nav_order, then sorts numerically by nav_order,
- * and finally alphabetically by title for pages without nav_order.
- * @param {object} a - The first page object { file, title, nav_order? }.
- * @param {object} b - The second page object { file, title, nav_order? }.
- * @returns {number} - A negative value if a comes before b, positive if a comes after b, or 0 if they are equal.
  */
 function compareNavPages(a, b) {
   const aHasOrder = a.nav_order !== undefined && a.nav_order !== null;
@@ -499,258 +283,44 @@ function compareNavPages(a, b) {
     return 1;
   }
   if (aHasOrder && bHasOrder) {
-    // Both have order, sort numerically
     return Number(a.nav_order) - Number(b.nav_order);
   }
-  // Neither has order, sort alphabetically by title
   return a.title.localeCompare(b.title);
 }
 
 /**
- * Processes a single version's documentation, including file processing and search data generation.
- * @param {object} versionConfig - The configuration object for this specific version.
- * @param {BuildContext} buildContext - The overall build context.
- * @returns {Promise<{id: string, label: string, pages: Array<object>, defaultFile: string}>} - Data for this version's entry in versions.json.
- * @throws {Error} If search data export fails.
+ * Copies static assets from a source directory to a target directory.
+ * @param {object} copyOptions - Options for copying.
+ * @param {string} copyOptions.sourceDir - The source directory.
+ * @param {string} copyOptions.targetDir - The target directory.
+ * @param {string[]} [copyOptions.excludeExtensions] - File extensions to exclude.
+ * @param {object} buildContext - The build context for logging.
  */
-async function processSingleVersion(versionConfig, buildContext) {
-  console.log(`\n--- Processing version: ${versionConfig.label} (ref: ${versionConfig.ref}) ---`);
+async function copyStaticAssetsInDir(copyOptions, buildContext) {
+  const { sourceDir, targetDir } = copyOptions;
+  const excludeExtensions = copyOptions.excludeExtensions || [".md"];
 
-  const versionClonePath = path.join(buildContext.tempDir, versionConfig.id);
-  const versionOutputPath = path.join(buildContext.outputDir, versionConfig.id);
+  await mkdir(targetDir, { recursive: true });
 
-  // Remove specific version output dir if it exists, then create it
-  await rm(versionOutputPath, { recursive: true, force: true });
-  await mkdir(versionOutputPath, { recursive: true });
+  const entries = await readdir(sourceDir, { withFileTypes: true });
+  for (const entry of entries) {
+    const sourcePath = path.join(sourceDir, entry.name);
+    const targetPath = path.join(targetDir, entry.name);
 
-  // Initialize Search for this version
-  const searchIndex = new FlexSearch.Document({
-    document: {
-      id: "id",
-      index: ["title", "content", "sections_text"],
-    },
-    tokenize: "forward",
-  });
-  const searchDocMap = {};
-  let docIdCounter = 0;
-
-  let versionNavPages = [];
-
-  const specSourceDir = path.join(versionClonePath, versionConfig.sourcePath || "");
-  if (fs.existsSync(specSourceDir)) {
-    const specFiles = findFiles(specSourceDir, versionConfig.includeGlobs, buildContext.rootDir, versionConfig.excludeGlobs);
-    const specContext = {
-      sourceDir: specSourceDir,
-      versionOutputPath,
-      searchIndex,
-      searchDocMap,
-      fileSourceType: "Spec",
-    };
-    const specResult = await processMarkdownFiles(specFiles, specContext, docIdCounter);
-    versionNavPages = versionNavPages.concat(specResult.processedPages);
-    docIdCounter = specResult.nextDocId; // Update counter
-  } else {
-    console.warn(`--- Warning: Spec source path does not exist for version ${versionConfig.label}: ${path.relative(buildContext.rootDir, specSourceDir)}. Skipping spec files. ---`);
-  }
-
-  if (versionConfig.localDocsPath) {
-    const localSourceDir = path.resolve(buildContext.rootDir, versionConfig.localDocsPath);
-    if (fs.existsSync(localSourceDir)) {
-      const localIncludeGlobs = versionConfig.localIncludeGlobs || ["**/*.md"];
-      const localFiles = findFiles(localSourceDir, localIncludeGlobs, buildContext.rootDir, versionConfig.localExcludeGlobs);
-      const localContext = {
-        sourceDir: localSourceDir,
-        versionOutputPath,
-        searchIndex,
-        searchDocMap,
-        fileSourceType: "Local",
-      };
-      const localResult = await processMarkdownFiles(localFiles, localContext, docIdCounter);
-      versionNavPages = versionNavPages.concat(localResult.processedPages);
-      docIdCounter = localResult.nextDocId;
-    } else {
-      console.warn(`--- Warning: Local docs path specified but does not exist for version ${versionConfig.label}: ${path.relative(buildContext.rootDir, localSourceDir)}. Skipping local files. ---`);
+    if (entry.isDirectory()) {
+      await copyStaticAssetsInDir({ sourceDir: sourcePath, targetDir: targetPath, excludeExtensions }, buildContext);
+    } else if (entry.isFile()) {
+      const ext = path.extname(entry.name).toLowerCase();
+      if (!excludeExtensions.includes(ext)) {
+        await copyFile(sourcePath, targetPath);
+        console.log(`   Copied: ${path.relative(buildContext.rootDir, sourcePath)} -> ${path.relative(buildContext.rootDir, targetPath)}`);
+      }
     }
-  }
-
-  // Sort combined navigation pages using the dedicated comparator
-  versionNavPages.sort(compareNavPages);
-
-  const defaultFile = determineDefaultFile(versionNavPages);
-
-  // Export Search Data for this version
-  await exportSearchData({ versionOutputPath, searchIndex, searchDocMap });
-
-  return {
-    id: versionConfig.id,
-    label: versionConfig.label,
-    pages: versionNavPages,
-    defaultFile: defaultFile,
-  };
-}
-
-/**
- * Processes a single Markdown file asynchronously.
- * @param {string} relativeFilePath - File path relative to sourceDir.
- * @param {number} docId - The document ID to use for search indexing.
- * @param {VersionProcessingContext} context - Context object for version processing.
- * @returns {Promise<handleFileProcessingResult| null>} - Processed data or null if processing failed (error logged internally).
- */
-async function processSingleMarkdownFile(relativeFilePath, docId, context) {
-  const { sourceDir, versionOutputPath, searchIndex, fileSourceType } = context;
-  const sourceFilePath = path.join(sourceDir, relativeFilePath);
-  const outputFileName = relativeFilePath.replace(/\.md$/, ".html");
-  const outputFilePath = path.join(versionOutputPath, outputFileName);
-
-  console.log(`  Processing ${fileSourceType} file: ${relativeFilePath} (Doc ID: ${docId})`);
-
-  try {
-    // Ensure the target directory for the HTML file exists
-    await mkdir(path.dirname(outputFilePath), { recursive: true });
-
-    const rawFileContent = await readFile(sourceFilePath, "utf-8");
-    let frontMatter = {};
-    let markdownBody = rawFileContent;
-    try {
-      const parsed = grayMatter(rawFileContent);
-      frontMatter = parsed.data || {};
-      markdownBody = parsed.content;
-    } catch (e) {
-      console.warn(`    Could not parse front matter for ${relativeFilePath}. Error: ${e.message}`);
-    }
-
-    const fallbackTitle = path
-      .basename(relativeFilePath, ".md")
-      .replace(/[-_]/g, " ")
-      .replace(/\b\w/g, (l) => l.toUpperCase());
-
-    const { html: htmlContent, title: extractedH1Title, textContent, sections } = processMarkdown(markdownBody, fallbackTitle);
-
-    const finalTitle = frontMatter.title || extractedH1Title || fallbackTitle;
-
-    const isObsoleted = frontMatter?.obsoleted_by || frontMatter?.status?.toLowerCase() === "obsoleted" || frontMatter?.status?.toLowerCase() === "superseded";
-
-    // Add document to search index and map
-    const sectionsText = sections.map((s) => s.text).join(" ");
-
-    // searchIndex.add is synchronous
-    searchIndex.add({
-      id: docId,
-      title: finalTitle,
-      content: textContent,
-      sections_text: sectionsText,
-      isObsoleted: isObsoleted,
-    });
-
-    // Prepare the document map entry
-    const searchDocMapEntry = {
-      docId: docId,
-      mapEntry: {
-        title: finalTitle,
-        href: outputFileName,
-        sections: sections,
-        isObsoleted: isObsoleted,
-      },
-    };
-
-    // Only include in navigation if not obsoleted
-    let processedPage = null;
-    if (!isObsoleted) {
-      const navTitle = frontMatter.nav_label || finalTitle;
-      processedPage = { file: outputFileName, title: navTitle, nav_order: frontMatter.nav_order };
-    } else {
-      console.log(`    Skipping nav for obsoleted: ${relativeFilePath}`);
-    }
-
-    await writeFile(outputFilePath, htmlContent);
-    return { processedPage, searchDocMapEntry, error: null };
-  } catch (processError) {
-    console.error(`    Failed processing file ${relativeFilePath}: ${processError.message}`);
-    return {
-      processedPage: null,
-      searchDocMapEntry: null,
-      error: processError,
-    };
-  }
-}
-
-/**
- * Processes a list of Markdown files from a given source directory (in parallel).
- * @param {string[]} files - Array of file paths relative to sourceDir.
- * @param {VersionProcessingContext} context - Context object for version processing.
- * @param {number} initialDocId - The starting document ID counter for this batch.
- * @returns {Promise<{processedPages: Array, nextDocId: number}>} - Processed pages for navigation and the next doc ID.
- */
-async function processMarkdownFiles(files, context, initialDocId) {
-  if (files.length === 0) {
-    console.log(`  No ${context.fileSourceType} files found to process.`);
-    return { processedPages: [], nextDocId: initialDocId };
-  }
-
-  console.log(`  Processing ${files.length} ${context.fileSourceType} files in parallel...`);
-
-  // Assign sequential doc IDs before starting parallel processing
-  const filesWithIds = files.map((file, index) => ({
-    relativeFilePath: file,
-    docId: initialDocId + index,
-  }));
-
-  // Create an array of promises for processing each file
-  const processingPromises = filesWithIds.map(({ relativeFilePath, docId }) => processSingleMarkdownFile(relativeFilePath, docId, context));
-
-  // Wait for all promises to settle
-  const results = await Promise.allSettled(processingPromises);
-
-  const processedPages = [];
-  let successfulCount = 0;
-  let failedCount = 0;
-
-  // Process results using the new helper
-  for (const result of results) {
-    const { successful, failed } = handleFileProcessingResult(result, context, processedPages);
-    successfulCount += successful;
-    failedCount += failed;
-  }
-
-  console.log(`  Finished processing files. Successful: ${successfulCount}, Failed: ${failedCount}.`);
-
-  const nextDocId = initialDocId + files.length;
-  return { processedPages, nextDocId };
-}
-
-/**
- * Exports the search index and map to JSON files.
- * @param {{versionOutputPath: string, searchIndex: FlexSearch.Document, searchDocMap: object}} params - Export parameters.
- */
-async function exportSearchData({ versionOutputPath, searchIndex, searchDocMap }) {
-  console.log("  Exporting search index and map...");
-  const searchIndexPath = path.join(versionOutputPath, SEARCH_INDEX_FILE);
-  const searchMapPath = path.join(versionOutputPath, SEARCH_MAP_FILE);
-  const indexExports = {};
-  try {
-    searchIndex.export((key, data) => {
-      if (data !== undefined && data !== null) indexExports[key] = data;
-    });
-    if (Object.keys(indexExports).length > 0) {
-      await writeFile(searchIndexPath, JSON.stringify(indexExports, null, 0), "utf8");
-      console.log(`    Search index saved to ${SEARCH_INDEX_FILE}`);
-    } else {
-      console.warn("    Search index export resulted in empty data. No index file written.");
-    }
-    // Always write the search map even if the index is empty
-    await writeFile(searchMapPath, JSON.stringify(searchDocMap, null, 2), "utf8");
-    console.log(`    Search map saved to ${SEARCH_MAP_FILE}`);
-  } catch (exportError) {
-    console.error(`    Error exporting search data: ${exportError.message}`);
-    throw exportError;
   }
 }
 
 /**
  * Sets up the output directory, cleaning it if it exists and is a directory.
- * @param {BuildContext} buildContext - The build context.
- * @returns {Promise<void>}
- * @throws {Error} If the output path exists and is a file.
  */
 async function setupOutputDirectory(buildContext) {
   console.log(`Cleaning up old output directory: ${path.relative(buildContext.rootDir, buildContext.outputDir)}...`);
@@ -786,8 +356,6 @@ async function setupOutputDirectory(buildContext) {
 
 /**
  * Determines the default file for a version based on preferred names.
- * @param {Array<{file: string, title: string}>} versionNavPages - Array of processed pages for the version.
- * @returns {string} - The determined default file name.
  */
 function determineDefaultFile(versionNavPages) {
   let defaultFile = PREFERRED_DEFAULT_FILES[0];
@@ -805,31 +373,463 @@ function determineDefaultFile(versionNavPages) {
 }
 
 /**
- * Processes all configured versions, cloning/updating repos (if needed),
- * processing Markdown files, and generating search data.
- * @param {BuildContext} buildContext - The build context.
- * @returns {Promise<Array<object>>} - Array of processed version data for versions.json.
+ * Exports the search index and map to JSON files.
+ */
+async function exportSearchData({ versionOutputPath, searchIndex, searchDocMap }) {
+  console.log("  Exporting search index and map...");
+  const searchIndexPath = path.join(versionOutputPath, SEARCH_INDEX_FILE);
+  const searchMapPath = path.join(versionOutputPath, SEARCH_MAP_FILE);
+  const indexExports = {};
+  try {
+    searchIndex.export((key, data) => {
+      if (data !== undefined && data !== null) indexExports[key] = data;
+    });
+    if (Object.keys(indexExports).length > 0) {
+      await writeFile(searchIndexPath, JSON.stringify(indexExports, null, 0), "utf8");
+      console.log(`    Search index saved to ${SEARCH_INDEX_FILE}`);
+    } else {
+      console.warn("    Search index export resulted in empty data. No index file written.");
+    }
+    await writeFile(searchMapPath, JSON.stringify(searchDocMap, null, 2), "utf8");
+    console.log(`    Search map saved to ${SEARCH_MAP_FILE}`);
+  } catch (exportError) {
+    console.error(`    Error exporting search data: ${exportError.message}`);
+    throw exportError;
+  }
+}
+
+class SearchProcessingState {
+  constructor() {
+    this.searchIndex = new FlexSearch.Document({
+      document: {
+        id: "id",
+        index: ["title", "content", "sections_text"],
+      },
+      tokenize: "forward",
+    });
+    this.searchDocMap = {};
+    this.docIdCounter = 0;
+  }
+
+  updateDocId(count) {
+    this.docIdCounter += count;
+  }
+}
+
+/**
+ * Parses an HTML string using node-html-parser and handles potential errors.
+ */
+function parseHtmlString(htmlString, identifier) {
+  try {
+    const root = parse(htmlString);
+    if (!root || typeof root.querySelector !== "function") {
+      console.warn(`    HTML parsing failed for: ${identifier}.`);
+      return null;
+    }
+    return root;
+  } catch (parseError) {
+    console.error(`    Error during HTML parsing for ${identifier}: ${parseError.message}`);
+    return null;
+  }
+}
+
+/**
+ * Extracts the title from the first H1 element in the parsed HTML root.
+ */
+function extractTitleFromHtml(root, fallbackTitle) {
+  const h1Element = root.querySelector("h1");
+  if (h1Element) {
+    const extractedTitle = extractNodeText(h1Element);
+    return extractedTitle.trim() || fallbackTitle;
+  }
+  return fallbackTitle;
+}
+
+/**
+ * Extracts section headers (h2-h6) with their IDs and text from the parsed HTML root.
+ */
+function extractSectionsFromHtml(root, identifier) {
+  const sections = [];
+  const headers = root.querySelectorAll("h2[id], h3[id], h4[id], h5[id], h6[id]");
+  if (headers && typeof headers[Symbol.iterator] === "function") {
+    for (const header of headers) {
+      const id = header.getAttribute("id");
+      const level = Number.parseInt(header.tagName.substring(1), 10);
+      let headerText = extractNodeText(header);
+      headerText = headerText.trim();
+
+      if (id && headerText) sections.push({ id, text: headerText, level });
+    }
+  } else {
+    console.warn(`    Could not iterate over headers in: ${identifier}`);
+  }
+  return sections;
+}
+
+/**
+ * Removes elements with the playground class from the parsed HTML root.
+ */
+function removePlaygroundsFromHtml(root, identifier) {
+  const playgrounds = root.querySelectorAll(`.${PLAYGROUND_CLASSES.container}`);
+  if (playgrounds && typeof playgrounds[Symbol.iterator] === "function") {
+    let removedCount = 0;
+    for (const el of playgrounds) {
+      el.remove();
+      removedCount++;
+    }
+    if (removedCount > 0) {
+      console.log(`    Removed ${removedCount} playground(s) before text extraction for: ${identifier}`);
+    }
+  }
+}
+
+/**
+ * Extracts text content from the parsed HTML root.
+ */
+function extractTextFromHtml(root) {
+  return root.structuredText || root.textContent || "";
+}
+
+/**
+ * Extracts front matter, markdown body, and processes markdown into HTML.
+ */
+function _extractContentAndProcess(rawFileContent, relativeFilePath) {
+  let frontMatter = {};
+  let markdownBody = rawFileContent;
+  try {
+    const parsed = grayMatter(rawFileContent);
+    frontMatter = parsed.data || {};
+    markdownBody = parsed.content;
+  } catch (e) {
+    console.warn(`    Could not parse front matter for ${relativeFilePath}. Error: ${e.message}`);
+  }
+
+  const fallbackTitle = path
+    .basename(relativeFilePath, ".md")
+    .replace(/[-_]/g, " ")
+    .replace(/\b\w/g, (l) => l.toUpperCase());
+
+  const htmlContent = marked.parse(markdownBody);
+  const root = parseHtmlString(htmlContent, relativeFilePath);
+
+  let pageTitle = fallbackTitle;
+  let sections = [];
+  let textContent = markdownBody;
+
+  if (root) {
+    pageTitle = extractTitleFromHtml(root, fallbackTitle);
+    sections = extractSectionsFromHtml(root, relativeFilePath);
+    removePlaygroundsFromHtml(root, relativeFilePath);
+    textContent = extractTextFromHtml(root);
+  } else {
+    console.warn(`    Using fallback title "${fallbackTitle}" and raw markdown text for search for ${relativeFilePath} due to parsing failure.`);
+  }
+
+  return {
+    frontMatter,
+    htmlContent,
+    pageTitle,
+    textContent,
+    sections,
+  };
+}
+
+/**
+ * Prepares the data needed for search index entries, search map entries, and navigation pages.
+ * @param {object} params - Parameters for preparing data.
+ * @param {number} params.docId - The document ID for this file.
+ * @param {string} params.pageTitle - The extracted/derived page title.
+ * @param {string} params.textContent - The extracted text content for search.
+ * @param {Array} params.sections - Extracted section data.
+ * @param {object} params.frontMatter - Parsed front matter data.
+ * @param {string} params.outputFileName - The output HTML file name.
+ * @param {string} params.relativeFilePath - The original relative Markdown file path.
+ * @returns {{searchIndexEntry: object, searchDocMapEntry: object, processedPage: object | null}}
+ */
+function _prepareSearchAndNavData(params) {
+  const { docId, pageTitle, textContent, sections, frontMatter, outputFileName, relativeFilePath } = params;
+
+  const finalTitle = frontMatter.title || pageTitle;
+  const isObsoleted = frontMatter?.obsoleted_by || frontMatter?.status?.toLowerCase() === "obsoleted" || frontMatter?.status?.toLowerCase() === "superseded";
+  const sectionsText = sections.map((s) => s.text).join(" ");
+
+  const searchIndexEntry = {
+    id: docId,
+    title: finalTitle,
+    content: textContent,
+    sections_text: sectionsText,
+    isObsoleted: isObsoleted,
+  };
+
+  const searchDocMapEntry = {
+    docId: docId,
+    mapEntry: {
+      title: finalTitle,
+      href: outputFileName,
+      sections: sections,
+      isObsoleted: isObsoleted,
+    },
+  };
+
+  let processedPage = null;
+  if (isObsoleted) {
+    console.log(`    Skipping nav for obsoleted: ${relativeFilePath}`);
+  } else {
+    const navTitle = frontMatter.nav_label || finalTitle;
+    processedPage = { file: outputFileName, title: navTitle, nav_order: frontMatter.nav_order };
+  }
+
+  return { searchIndexEntry, searchDocMapEntry, processedPage };
+}
+
+/**
+ * Processes a single Markdown file asynchronously.
+ * @param {string} relativeFilePath - File path relative to sourceDir.
+ * @param {number} docId - The document ID to use for search indexing.
+ * @param {{sourceDir: string, versionOutputPath: string, fileSourceType: string}} context - Context for file processing.
+ * @returns {Promise<{searchIndexEntry: object | null, searchDocMapEntry: object | null, processedPage: object | null, error: Error | null}>}
+ */
+async function processSingleMarkdownFile(relativeFilePath, docId, context) {
+  const { sourceDir, versionOutputPath, fileSourceType } = context;
+  const sourceFilePath = path.join(sourceDir, relativeFilePath);
+  const outputFileName = relativeFilePath.replace(/\.md$/, ".html");
+  const outputFilePath = path.join(versionOutputPath, outputFileName);
+
+  console.log(`  Processing ${fileSourceType} file: ${relativeFilePath} (Doc ID: ${docId})`);
+
+  try {
+    await mkdir(path.dirname(outputFilePath), { recursive: true });
+
+    const rawFileContent = await readFile(sourceFilePath, "utf-8");
+    const { frontMatter, htmlContent, pageTitle, textContent, sections } = _extractContentAndProcess(rawFileContent, relativeFilePath);
+
+    const prepParams = { docId, pageTitle, textContent, sections, frontMatter, outputFileName, relativeFilePath };
+    const { searchIndexEntry, searchDocMapEntry, processedPage } = _prepareSearchAndNavData(prepParams);
+
+    await writeFile(outputFilePath, htmlContent);
+
+    return { searchIndexEntry, searchDocMapEntry, processedPage, error: null };
+  } catch (processError) {
+    console.error(`    Failed processing file ${relativeFilePath}: ${processError.message}`);
+    return {
+      searchIndexEntry: null,
+      searchDocMapEntry: null,
+      processedPage: null,
+      error: processError,
+    };
+  }
+}
+
+/**
+ * Processes a list of Markdown files from a given source directory (in parallel).
+ * @param {string[]} files - Array of file paths relative to sourceDir.
+ * @param {{sourceDir: string, versionOutputPath: string, fileSourceType: string, searchState: SearchProcessingState}} context - Context object.
+ * @returns {Promise<Array>} - Array of processed pages suitable for navigation.
+ */
+async function processMarkdownFiles(files, context) {
+  const { sourceDir, versionOutputPath, fileSourceType, searchState } = context;
+
+  if (files.length === 0) {
+    console.log(`  No ${fileSourceType} files found to process.`);
+    return [];
+  }
+
+  console.log(`  Processing ${files.length} ${fileSourceType} files in parallel...`);
+
+  const filesWithIds = files.map((file, index) => ({
+    relativeFilePath: file,
+    docId: searchState.docIdCounter + index,
+  }));
+
+  const processingPromises = filesWithIds.map(({ relativeFilePath, docId }) => processSingleMarkdownFile(relativeFilePath, docId, { sourceDir, versionOutputPath, fileSourceType }));
+
+  const results = await Promise.allSettled(processingPromises);
+
+  const processedPages = [];
+  let successfulCount = 0;
+  let failedCount = 0;
+
+  for (const result of results) {
+    if (result.status === "fulfilled" && result.value && result.value.error === null) {
+      const { searchIndexEntry, searchDocMapEntry, processedPage } = result.value;
+      searchState.searchIndex.add(searchIndexEntry);
+      searchState.searchDocMap[searchDocMapEntry.docId] = searchDocMapEntry.mapEntry;
+      if (processedPage) {
+        processedPages.push(processedPage);
+      }
+      successfulCount++;
+    } else {
+      failedCount++;
+    }
+  }
+
+  console.log(`  Finished processing files. Successful: ${successfulCount}, Failed: ${failedCount}.`);
+  searchState.updateDocId(files.length);
+  return processedPages;
+}
+
+/**
+ * Clones or updates a Git repository.
+ * @param {object} repoDetails - Details of the repository.
+ * @param {string} repoDetails.repoUrl - The URL of the Git repository.
+ * @param {string} repoDetails.targetPath - The path where the repository should be.
+ * @param {string} repoDetails.ref - The Git reference (branch or tag).
+ * @param {object} buildContext - The build context containing rootDir.
+ */
+async function cloneOrUpdateRepo(repoDetails, buildContext) {
+  const { repoUrl, targetPath, ref } = repoDetails;
+  const { rootDir } = buildContext;
+
+  if (fs.existsSync(targetPath)) {
+    console.log(`Repository already exists at ${path.relative(rootDir, targetPath)}. Fetching updates...`);
+    runCommand("git fetch --all --tags --prune", targetPath, rootDir);
+  } else {
+    console.log(`Cloning ${repoUrl} (ref: ${ref}) into ${path.relative(rootDir, targetPath)}...`);
+    await mkdir(path.dirname(targetPath), { recursive: true });
+    runCommand(`git clone --no-checkout ${repoUrl} ${targetPath}`, rootDir, rootDir);
+  }
+}
+
+/**
+ * Checks out a specific Git reference.
+ * @param {object} checkoutDetails - Details for checkout.
+ * @param {string} checkoutDetails.repoPath - Path to the repository.
+ * @param {string} checkoutDetails.ref - The Git reference to checkout.
+ * @param {boolean} checkoutDetails.isTag - Whether the ref is a tag.
+ * @param {object} buildContext - The build context containing rootDir.
+ */
+function checkoutRef(checkoutDetails, buildContext) {
+  const { repoPath, ref, isTag } = checkoutDetails;
+  const { rootDir } = buildContext;
+
+  console.log(`Checking out ${isTag ? "tag" : "branch"}: ${ref} in ${path.relative(rootDir, repoPath)}`);
+  runCommand(`git checkout -f ${ref}`, repoPath, rootDir);
+  runCommand("git clean -fdx", repoPath, rootDir);
+}
+
+async function performGitOperations(buildContext) {
+  console.log(`\nCleaning up old temporary directory: ${path.relative(buildContext.rootDir, buildContext.tempDir)}...`);
+  try {
+    await rm(buildContext.tempDir, { recursive: true, force: true });
+    await mkdir(buildContext.tempDir, { recursive: true });
+  } catch (err) {
+    console.error(`Error cleaning temp directory ${path.relative(buildContext.rootDir, buildContext.tempDir)}: ${err.message}`);
+  }
+
+  for (const version of buildContext.config.versions) {
+    console.log(`\n--- Preparing source for version: ${version.label} (ref: ${version.ref}) ---`);
+    const versionClonePath = path.join(buildContext.tempDir, version.id);
+    try {
+      const repoDetails = { repoUrl: buildContext.config.specRepoUrl, targetPath: versionClonePath, ref: version.ref };
+      await cloneOrUpdateRepo(repoDetails, buildContext);
+
+      const checkoutDetails = { repoPath: versionClonePath, ref: version.ref, isTag: version.isTag };
+      checkoutRef(checkoutDetails, buildContext);
+    } catch {
+      console.error(`--- Error during Git operations for version ${version.label}. Skipping. ---`);
+    }
+  }
+  console.log("\n--- Finished Git Operations ---");
+}
+
+/**
+ * Helper to process files from a specific source type (Spec or Local) for a version.
+ * @param {object} sourceArgs - Arguments specific to this source processing.
+ * @param {string} sourceArgs.sourceBasePath - Absolute path to the source directory.
+ * @param {string} sourceArgs.versionOutputPath - Absolute path to the version's output directory.
+ * @param {SearchProcessingState} sourceArgs.searchState - Mutable search state instance.
+ * @param {string} sourceArgs.fileSourceType - Label for the source type ("Spec" or "Local").
+ * @param {object} versionConfig - The configuration object for the version.
+ * @param {BuildContext} buildContext - The overall build context.
+ * @returns {Promise<Array>} - Array of processed pages for navigation.
+ */
+async function _processVersionSourceFiles(sourceArgs, versionConfig, buildContext) {
+  const { sourceBasePath, versionOutputPath, searchState, fileSourceType } = sourceArgs;
+
+  const { includeGlobs, excludeGlobs } =
+    fileSourceType === "Spec"
+      ? {
+          includeGlobs: versionConfig.includeGlobs,
+          excludeGlobs: versionConfig.excludeGlobs,
+        }
+      : { includeGlobs: versionConfig.localIncludeGlobs || ["**/*.md"], excludeGlobs: versionConfig.localExcludeGlobs };
+
+  if (!fs.existsSync(sourceBasePath)) {
+    console.warn(`--- Warning: ${fileSourceType} source path does not exist for version ${versionConfig.label}: ${path.relative(buildContext.rootDir, sourceBasePath)}. Skipping ${fileSourceType} files. ---`);
+    return [];
+  }
+
+  const files = findFiles({ basePath: sourceBasePath, includeGlobs, excludeGlobs }, buildContext);
+  const context = {
+    sourceDir: sourceBasePath,
+    versionOutputPath,
+    searchState: searchState,
+    fileSourceType,
+  };
+  return await processMarkdownFiles(files, context);
+}
+
+/**
+ * Processes a single version's documentation.
+ */
+async function processSingleVersion(versionConfig, buildContext) {
+  console.log(`\n--- Processing version: ${versionConfig.label} (ref: ${versionConfig.ref}) ---`);
+
+  const versionClonePath = path.join(buildContext.tempDir, versionConfig.id);
+  const versionOutputPath = path.join(buildContext.outputDir, versionConfig.id);
+
+  await rm(versionOutputPath, { recursive: true, force: true });
+  await mkdir(versionOutputPath, { recursive: true });
+
+  const searchState = new SearchProcessingState();
+  let versionNavPages = [];
+
+  const specSourceDir = path.join(versionClonePath, versionConfig.sourcePath || "");
+  const specSourceArgs = { sourceBasePath: specSourceDir, versionOutputPath, searchState, fileSourceType: "Spec" };
+  const specProcessedPages = await _processVersionSourceFiles(specSourceArgs, versionConfig, buildContext);
+  versionNavPages = versionNavPages.concat(specProcessedPages);
+
+  if (versionConfig.localDocsPath) {
+    const localSourceDir = path.resolve(buildContext.rootDir, versionConfig.localDocsPath);
+    const localSourceArgs = { sourceBasePath: localSourceDir, versionOutputPath, searchState, fileSourceType: "Local" };
+    const localProcessedPages = await _processVersionSourceFiles(localSourceArgs, versionConfig, buildContext);
+    versionNavPages = versionNavPages.concat(localProcessedPages);
+
+    console.log(`--- Copying static assets from local docs path: ${path.relative(buildContext.rootDir, localSourceDir)}... ---`);
+    await copyStaticAssetsInDir({ sourceDir: localSourceDir, targetDir: versionOutputPath }, buildContext);
+  }
+
+  versionNavPages.sort(compareNavPages);
+  const defaultFile = determineDefaultFile(versionNavPages);
+
+  await exportSearchData({ versionOutputPath, searchIndex: searchState.searchIndex, searchDocMap: searchState.searchDocMap });
+
+  return {
+    id: versionConfig.id,
+    label: versionConfig.label,
+    pages: versionNavPages,
+    defaultFile: defaultFile,
+  };
+}
+
+/**
+ * Processes all configured versions.
  */
 async function processVersions(buildContext) {
   const allVersionsData = [];
-
   for (const version of buildContext.config.versions) {
     try {
       const versionData = await processSingleVersion(version, buildContext);
       allVersionsData.push(versionData);
     } catch (error) {
-      console.error(`\n--- Fatal Error processing version ${version.label}: ${error.message} ---`);
+      console.error(`\n--- Fatal Error processing version ${version.label}. Skipping this version. Error: ${error.message} ---`);
     }
   }
-
   return allVersionsData;
 }
 
 /**
  * Bundles the client-side JavaScript using esbuild.
- * @param {BuildContext} buildContext - The build context.
- * @returns {Promise<void>}
- * @throws {Error} If bundling fails or output directory path conflicts with a file.
  */
 async function bundleJavaScript(buildContext) {
   console.log("\nBundling client-side JavaScript...");
@@ -838,21 +838,15 @@ async function bundleJavaScript(buildContext) {
   const jsOutDir = path.dirname(jsOutFile);
 
   try {
-    const dirExists = fs.existsSync(jsOutDir);
-    if (dirExists) {
-      const stats = fs.statSync(jsOutDir);
-      if (!stats.isDirectory()) {
+    if (fs.existsSync(jsOutDir)) {
+      if (!fs.statSync(jsOutDir).isDirectory()) {
         console.error(`--- Error: Output directory path conflicts with an existing file: ${jsOutDir} ---`);
-        console.error("--- Please remove or rename this file and retry. ---");
         throw new Error("JS output directory path conflicts with a file.");
       }
-      console.log(`Output directory ${jsOutDir} already exists.`);
     } else {
-      console.log(`Creating output directory: ${jsOutDir}`);
       await mkdir(jsOutDir, { recursive: true });
     }
 
-    console.log(`Running esbuild to bundle ${jsEntryPoint}...`);
     await esbuild.build({
       entryPoints: [jsEntryPoint],
       outfile: jsOutFile,
@@ -873,37 +867,24 @@ async function bundleJavaScript(buildContext) {
 
 /**
  * Copies other static assets (CSS, index.html, etc.).
- * @param {BuildContext} buildContext - The build context.
- * @returns {Promise<void>}
  */
 async function copyStaticAssets(buildContext) {
   console.log("\nCopying other static assets (CSS, index.html, etc)...");
   const assetsToCopy = [
-    {
-      source: path.join(buildContext.srcDir, "style.css"),
-      dest: path.join(buildContext.outputDir, "style.css"),
-    },
-    {
-      source: path.join(buildContext.srcDir, "index.html"),
-      dest: path.join(buildContext.outputDir, "index.html"),
-    },
-    {
-      source: path.join(buildContext.srcDir, "favicon.svg"),
-      dest: path.join(buildContext.outputDir, "favicon.svg"),
-    },
+    { source: path.join(buildContext.srcDir, "style.css"), dest: path.join(buildContext.outputDir, "style.css") },
+    { source: path.join(buildContext.srcDir, "index.html"), dest: path.join(buildContext.outputDir, "index.html") },
+    { source: path.join(buildContext.srcDir, "favicon.svg"), dest: path.join(buildContext.outputDir, "favicon.svg") },
+    { source: path.join(buildContext.srcDir, "favicon-dark.svg"), dest: path.join(buildContext.outputDir, "favicon-dark.svg") },
   ];
 
   await Promise.all(
     assetsToCopy.map(async (asset) => {
       try {
         if (fs.existsSync(asset.source)) {
-          const destDir = path.dirname(asset.dest);
-          // Check if destination directory exists and create if necessary
-          await mkdir(destDir, { recursive: true });
+          await mkdir(path.dirname(asset.dest), { recursive: true });
           await copyFile(asset.source, asset.dest);
           console.log(`Copied ${path.relative(buildContext.rootDir, asset.source)} to ${path.relative(buildContext.rootDir, asset.dest)}`);
         } else {
-          // Only warn for non-essential assets if missing
           if (!asset.source.endsWith("index.html") && !asset.source.endsWith("style.css")) {
             console.warn(`Asset source not found, skipping copy: ${path.relative(buildContext.rootDir, asset.source)}`);
           }
@@ -919,31 +900,15 @@ async function copyStaticAssets(buildContext) {
 
 /**
  * Writes the versions.json file.
- * @param {BuildContext} buildContext - The build context.
- * @param {Array<object>} allVersionsData - Data structure for versions.json.
- * @returns {Promise<void>}
  */
 async function writeVersionsFile(buildContext, allVersionsData) {
   const versionsJsonPath = path.join(buildContext.outputDir, VERSIONS_FILE);
   console.log(`Creating ${path.relative(buildContext.rootDir, versionsJsonPath)}...`);
-  await writeFile(
-    versionsJsonPath,
-    JSON.stringify(
-      {
-        versions: allVersionsData,
-        defaultVersionId: buildContext.config.defaultVersionId,
-      },
-      null,
-      2,
-    ),
-    "utf8",
-  );
+  await writeFile(versionsJsonPath, JSON.stringify({ versions: allVersionsData, defaultVersionId: buildContext.config.defaultVersionId }, null, 2), "utf8");
 }
 
 /**
- * Performs the documentation build process, including FlexSearch index generation.
- * @param {BuildContext} buildContext - The build context.
- * @returns {Promise<void>}
+ * Performs the documentation build process.
  */
 async function performBuildProcess(buildContext) {
   console.log("\nStarting documentation build...");
@@ -954,15 +919,13 @@ async function performBuildProcess(buildContext) {
   await copyStaticAssets(buildContext);
   await writeVersionsFile(buildContext, allVersionsData);
 
-  console.log("\n--- Running Post-processing Steps (if any) ---");
+  console.log("\n--- Running Post-processing Steps (if any) ---"); // Placeholder
   console.log("\nDocumentation build finished successfully!");
   console.log(`Output available in: ${path.relative(buildContext.rootDir, buildContext.outputDir)}`);
 }
 
 /**
  * Parses command line arguments.
- * @param {string[]} args - Array of command line arguments (excluding node path and script path).
- * @returns {{gitOnly: boolean, buildOnly: boolean, help: boolean}} - Parsed arguments.
  */
 function parseArgs(args) {
   const gitOnly = args.includes("--git-only");
@@ -973,7 +936,6 @@ function parseArgs(args) {
     console.error("--- Error: Cannot use --git-only and --build-only together. ---");
     process.exit(1);
   }
-
   return { gitOnly, buildOnly, help };
 }
 
@@ -981,9 +943,9 @@ function runPreProcessing() {
   console.log("\n--- Running Pre-processing Steps (if any) ---");
 }
 
-function showHelp(scriptPath, rootDir) {
+function showHelp(scriptPath, currentRootDir) {
   console.log(`
-Usage: node ${path.relative(rootDir, scriptPath)} [options]
+Usage: node ${path.relative(currentRootDir, scriptPath)} [options]
 
 Builds the documentation site by cloning/updating source repositories and processing Markdown files.
 
@@ -995,16 +957,12 @@ Options:
   --skip-git      Alias for --build-only.
   --help, -h      Show this help message and exit.
 
-If no options are specified, both Git operations and the build process are performed (default behavior).
+If no options are specified, both Git operations and the full build process are performed (default behavior).
 `);
 }
 
 /**
  * Executes the main build steps based on parsed arguments.
- * @param {{gitOnly: boolean, buildOnly: boolean, help: boolean}} options - Parsed command line options.
- * @param {BuildContext} buildContext - The overall build context.
- * @returns {Promise<void>}
- * @throws {Error} If any major step fails.
  */
 async function executeBuildSteps(options, buildContext) {
   const { gitOnly, buildOnly } = options;
@@ -1051,7 +1009,7 @@ async function main() {
   };
 
   if (options.help) {
-    showHelp(__filename, rootDir);
+    showHelp(__filename, buildContext.rootDir);
     process.exit(0);
   }
 
