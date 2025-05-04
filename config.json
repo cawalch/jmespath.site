@@ -26,5 +26,5 @@
 	],
 	"defaultVersionId": "current",
 	"tempDir": "build",
-	"outputDir": "dist"
+	"outputDir": "docs"
 }
