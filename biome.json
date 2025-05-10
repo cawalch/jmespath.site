@@ -1,17 +1,18 @@
 {
 	"$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
 	"vcs": {
-		"enabled": false,
+		"enabled": true,
 		"clientKind": "git",
-		"useIgnoreFile": false
+		"useIgnoreFile": true
 	},
 	"files": {
-		"ignoreUnknown": false,
-		"ignore": []
+		"ignoreUnknown": true,
+		"ignore": ["dist/", "node_modules/", "docs/"]
 	},
 	"formatter": {
 		"enabled": true,
-		"indentStyle": "tab"
+		"indentStyle": "tab",
+		"lineWidth": 80
 	},
 	"organizeImports": {
 		"enabled": true
@@ -20,19 +21,60 @@
 		"enabled": true,
 		"rules": {
 			"recommended": true,
-      "complexity": {
-        "noExcessiveCognitiveComplexity": {
-          "level": "warn",
-          "options": {
-            "maxAllowedComplexity": 10
-          }
-        }
-      }
+			"complexity": {
+				"noExcessiveCognitiveComplexity": {
+					"level": "warn",
+					"options": {
+						"maxAllowedComplexity": 10
+					}
+				},
+				"noExtraBooleanCast": "warn"
+			},
+			"style": {
+				"useNamingConvention": {
+					"level": "error",
+					"options": {
+						"strictCase": true,
+						"requireAscii": true,
+						"enumMemberCase": "CONSTANT_CASE"
+					}
+				},
+				"noUselessElse": "error",
+				"noNegationElse": "warn",
+				"useTemplate": "warn"
+			},
+			"correctness": {
+				"noUnusedVariables": "error",
+				"noInvalidConstructorSuper": "error",
+				"noInnerDeclarations": "warn"
+			},
+			"suspicious": {
+				"noDebugger": "error",
+				"noDoubleEquals": "error",
+				"noCommentText": "error",
+				"noEmptyBlockStatements": "warn"
+			}
 		}
 	},
 	"javascript": {
 		"formatter": {
-			"quoteStyle": "double"
+			"quoteStyle": "double",
+			"semicolons": "asNeeded"
+		},
+		"parser": {
+			"unsafeParameterDecoratorsEnabled": false
 		}
-	}
+	},
+	"overrides": [
+		{
+			"include": ["src/*.js"],
+			"linter": {
+				"rules": {
+					"suspicious": {
+						"noConsoleLog": "error"
+					}
+				}
+			}
+		}
+	]
 }

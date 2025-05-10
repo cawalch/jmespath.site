@@ -3,9 +3,9 @@ title: Home
 nav_order: 1
 ---
 
-# JMESPath Community
+![Logo](./current/logo.svg "JMESPath Community Edition")
 
-A Query Language for JSON.
+A Query Language for JSON
 
 ```jmespath-interactive expanded locations[?state == 'WA'].name | sort(@)
 {

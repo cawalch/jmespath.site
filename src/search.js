@@ -1,5 +1,3 @@
-// src/search.js
-
 import FlexSearch from "flexsearch";
 // DOM Elements (references stored during initialization)
 let _searchInput = null;
@@ -119,7 +117,7 @@ function highlightSearchResult(index) {
 function performSearch(query) {
   if (!_searchResultsContainer || !_searchInput) return;
 
-  resetSearchUIState();
+  resetSearchUiState();
 
   if (!searchIndex || !searchDocMap) {
     displaySearchNotReady();
@@ -150,7 +148,7 @@ function performSearch(query) {
 /**
  * Resets the search UI state (hides results, clears content, resets highlight).
  */
-function resetSearchUIState() {
+function resetSearchUiState() {
   highlightedResultIndex = -1;
   _searchResultsContainer.innerHTML = "";
   _searchResultsContainer.hidden = true;
@@ -281,7 +279,7 @@ function buildDocumentWithMetadata(docId, enrichedDocData, mapDoc) {
     id: docId,
     title: enrichedDocData?.title || mapDoc.title,
     content: enrichedDocData?.content || mapDoc.content || null,
-    sections_text: enrichedDocData?.sections_text || mapDoc.sections_text || null,
+    sectionsText: enrichedDocData?.sections_text || mapDoc.sections_text || null, // Renamed property
     href: mapDoc.href,
     sections: mapDoc.sections,
     isObsoleted: mapDoc.isObsoleted,
@@ -297,7 +295,8 @@ function buildDocumentWithMetadata(docId, enrichedDocData, mapDoc) {
 function calculateScore(field, isObsoleted) {
   let score = 0;
   if (field === "title") score = 3;
-  else if (field === "sections_text") score = 2;
+  else if (field === "sections_text")
+    score = 2; // String literal matches index field name
   else if (field === "content") score = 1;
   if (isObsoleted) score -= 0.5;
   return score;
@@ -402,6 +401,7 @@ function getSnippetAndSectionId(doc, matchedField, trimmedQuery) {
   let bestSectionId = null;
 
   if (matchedField === "sections_text" && doc.sections?.length > 0) {
+    // String literal matches index field name
     const lowerQuery = trimmedQuery.toLowerCase();
     const matchingSection = doc.sections.find((s) => s.text?.toLowerCase().includes(lowerQuery));
 
@@ -539,7 +539,7 @@ function handleSearchResultClick(event) {
  */
 export async function loadSearchIndex(versionId) {
   resetSearchState();
-  updateLoadStateUI("Loading search...");
+  updateLoadStateUi("Loading search..."); // Renamed function
 
   if (!versionId) {
     handleLoadError("No version ID provided to load search index.", "Select version first");
@@ -556,8 +556,7 @@ export async function loadSearchIndex(versionId) {
     searchIndex = newIndex;
     searchDocMap = mapData;
 
-    updateLoadStateUI("Search docs...");
-    console.log(`Search index loaded for version ${versionId}`);
+    updateLoadStateUi("Search docs..."); // Renamed function
     if (_searchInput) {
       _searchInput.disabled = false;
       _searchInput.placeholder = "Search...";
@@ -580,7 +579,8 @@ function resetSearchState() {
  * Updates the UI state of the search input and results container during loading.
  * @param {string} placeholderText - The text to set as the input placeholder.
  */
-function updateLoadStateUI(placeholderText) {
+function updateLoadStateUi(placeholderText) {
+  // Renamed function
   if (_searchInput) {
     _searchInput.disabled = true;
     _searchInput.placeholder = placeholderText;
@@ -633,7 +633,7 @@ async function fetchIndexData(indexPath, mapPath, versionId) {
  */
 function createAndImportIndex(indexData) {
   const newIndex = new FlexSearch.Document({
-    document: { id: "id", index: ["title", "content", "sections_text"] },
+    document: { id: "id", index: ["title", "content", "sections_text"] }, // Keep "sections_text" string literal as it matches the index field name
     tokenize: "forward",
     context: { depth: 2, resolution: 9 },
   });
@@ -721,6 +721,4 @@ export function initializeSearch(context) {
       _searchResultsContainer.hidden = false;
     }
   });
-
-  console.log("Search module initialized.");
 }
