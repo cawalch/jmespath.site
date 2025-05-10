@@ -132,23 +132,3 @@ This site's build process includes custom handling for Markdown files, providing
     foo.bar
     ```
     ````
-
-4.  **Interactive JMESPath Playground Blocks**: Code blocks with the language identifier `jmespath-interactive` are rendered as interactive playgrounds.
-
-    - The content of the block should contain the initial JSON input, followed by `---JMESPATH---` on a line by itself, and then the initial JMESPath query.
-    - The language identifier can include options:
-      - `jmespath-interactive expanded`: The playground will be initially expanded.
-      - `jmespath-interactive [Your Title Here]`: Sets a custom title for the playground block header.
-      - `jmespath-interactive expanded [Your Title Here]`: Sets a custom title and makes it initially expanded.
-
-    Example:
-
-    ````markdown
-    ```jmespath-interactive expanded Example Query
-    {
-      "foo": {"bar": "baz"}
-    }
-    ---JMESPATH---
-    foo.bar
-    ```
-    ````
