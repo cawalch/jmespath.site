@@ -1,5 +1,5 @@
 {
-	"specRepoUrl": "https://github.com/jmespath-community/jmespath.spec.git",
+	"specRepoUrl": "https://github.com/cawalch/jmespath.spec.git",
 	"versions": [
 		{
 			"id": "current",

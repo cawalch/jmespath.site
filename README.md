@@ -77,21 +77,23 @@ This site's build process includes custom handling for Markdown files, providing
 
 1.  **Front Matter**: Markdown files can start with a YAML front matter block (delimited by `---`). The following keys are recognized:
 
-    - `title`: Overrides the page title derived from the first H1 tag.
-    - `nav_label`: Specifies the text used for this page in the navigation menu (defaults to `title` if not provided).
-    - `nav_order`: A number used to sort the page in the navigation menu. Pages with a defined `nav_order` appear before those without, sorted numerically. Pages without are sorted alphabetically by `nav_label`/`title`.
-    - `obsoleted_by`: Marks the page as obsoleted (e.g., by a newer version). Obsoleted pages are excluded from the navigation menu but are still included in the search index (marked as obsoleted).
-    - `status`: If set to `obsoleted` or `superseded` (case-insensitive), also marks the page as obsoleted, similar to `obsoleted_by`.
+- `title`: Overrides the page title derived from the first H1 tag.
+- `nav_label`: Specifies the text used for this page in the navigation menu (defaults to `title` if not provided).
+- `nav_order`: A number used to sort the page in the navigation menu. Pages with a defined `nav_order` appear before those without, sorted numerically. Pages without are sorted alphabetically by `nav_label`/`title`.
+- `id`: A unique identifier for this page (e.g., `"intro"`, `"syntax"`). This ID is used to link pages together, particularly for defining parent/child relationships in the navigation. If not provided, the page's relative file path (without the `.md` extension) is used as the ID.
+- `parent`: The `id` of another page in the same version. If specified, this page will be nested as a child under the page with the matching `id` in the navigation menu.
+- `obsoleted_by`: Marks the page as obsoleted (e.g., by a newer version). Obsoleted pages are excluded from the navigation menu but are still included in the search index (marked as obsoleted).
+- `status`: If set to `obsoleted` or `superseded` (case-insensitive), also marks the page as obsoleted, similar to `obsoleted_by`.
 
-    Example front matter:
+  Example front matter:
 
-    ```yaml
-    ---
-    title: Introduction to JMESPath
-    nav_label: Introduction
-    nav_order: 1
-    ---
-    ```
+  ```yaml
+  ---
+  title: Introduction to JMESPath
+  nav_label: Introduction
+  nav_order: 1
+  ---
+  ```
 
 2.  **Custom Heading Anchors**: All standard Markdown headings (`#` to `######`) are processed. The script automatically generates a stable ID based on the heading text and adds a clickable anchor link (`#`) next to the heading that links to that ID.
 

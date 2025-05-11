@@ -270,22 +270,60 @@ function runCommand(command, cwd, rootDir) {
 }
 
 /**
- * Comparator function to sort navigation pages.
+ * Compares two pages based on their parent ID.
+ * Pages without a parent sort before pages with a parent.
+ * If both have parents, sort by parent ID alphabetically.
  */
-function compareNavPages(a, b) {
+function compareParent(a, b) {
+  const aHasParent = a.parent !== undefined && a.parent !== null;
+  const bHasParent = b.parent !== undefined && b.parent !== null;
+
+  if (!aHasParent && bHasParent) return -1;
+  if (aHasParent && !bHasParent) return 1;
+  if (aHasParent && bHasParent) {
+    // Optional: Sort by parent ID alphabetically if both have parents
+    return (a.parent || "").localeCompare(b.parent || "");
+  }
+  return 0; // Both have no parent
+}
+
+/**
+ * Compares two pages based on their navigation order.
+ * Pages with a nav_order sort before pages without.
+ * If both have order, sort numerically.
+ */
+function compareNavOrder(a, b) {
   const aHasOrder = a.nav_order !== undefined && a.nav_order !== null;
   const bHasOrder = b.nav_order !== undefined && b.nav_order !== null;
 
-  if (aHasOrder && !bHasOrder) {
-    return -1;
-  }
-  if (!aHasOrder && bHasOrder) {
-    return 1;
-  }
+  if (aHasOrder && !bHasOrder) return -1;
+  if (!aHasOrder && bHasOrder) return 1;
   if (aHasOrder && bHasOrder) {
     return Number(a.nav_order) - Number(b.nav_order);
   }
+  return 0; // Both have no nav_order or equal order
+}
+
+/**
+ * Compares two pages based on their title alphabetically.
+ */
+function compareTitle(a, b) {
   return a.title.localeCompare(b.title);
+}
+
+/**
+ * Comparator function to sort navigation pages.
+ * Sorts by parent presence (null/undefined first), then by parent ID,
+ * then by nav_order, and finally by title.
+ */
+function compareNavPages(a, b) {
+  const parentComparison = compareParent(a, b);
+  if (parentComparison !== 0) return parentComparison;
+
+  const orderComparison = compareNavOrder(a, b);
+  if (orderComparison !== 0) return orderComparison;
+
+  return compareTitle(a, b);
 }
 
 /**
@@ -525,12 +563,18 @@ function _extractContentAndProcess(rawFileContent, relativeFilePath) {
     console.warn(`    Using fallback title "${fallbackTitle}" and raw markdown text for search for ${relativeFilePath} due to parsing failure.`);
   }
 
+  // Extract ID and parent from front matter for navigation
+  const id = frontMatter.id;
+  const parent = frontMatter.parent;
+
   return {
     frontMatter,
     htmlContent,
     pageTitle,
     textContent,
     sections,
+    id, // Return extracted ID
+    parent, // Return extracted parent
   };
 }
 
@@ -544,17 +588,22 @@ function _extractContentAndProcess(rawFileContent, relativeFilePath) {
  * @param {object} params.frontMatter - Parsed front matter data.
  * @param {string} params.outputFileName - The output HTML file name.
  * @param {string} params.relativeFilePath - The original relative Markdown file path.
+ * @param {string} params.pageId - The extracted/derived page ID.
+ * @param {string | undefined} params.pageParent - The extracted parent ID.
  * @returns {{searchIndexEntry: object, searchDocMapEntry: object, processedPage: object | null}}
  */
 function _prepareSearchAndNavData(params) {
-  const { docId, pageTitle, textContent, sections, frontMatter, outputFileName, relativeFilePath } = params;
+  const { docId, pageTitle, textContent, sections, frontMatter, outputFileName, relativeFilePath, pageId, pageParent } = params;
 
+  // Use the extracted ID or default to relative path without extension
+  const finalId = pageId || relativeFilePath.replace(/\.md$/, "").replace(/\\/g, "/");
   const finalTitle = frontMatter.title || pageTitle;
+  const finalParent = pageParent; // Use the extracted parent
   const isObsoleted = frontMatter?.obsoleted_by || frontMatter?.status?.toLowerCase() === "obsoleted" || frontMatter?.status?.toLowerCase() === "superseded";
   const sectionsText = sections.map((s) => s.text).join(" ");
 
   const searchIndexEntry = {
-    id: docId,
+    id: docId, // FlexSearch uses a numeric ID; the human-readable ID is for navigation/mapping
     title: finalTitle,
     content: textContent,
     sections_text: sectionsText,
@@ -568,6 +617,7 @@ function _prepareSearchAndNavData(params) {
       href: outputFileName,
       sections: sections,
       isObsoleted: isObsoleted,
+      // No need for ID/parent in search map, it maps docId to page info
     },
   };
 
@@ -576,7 +626,13 @@ function _prepareSearchAndNavData(params) {
     console.log(`    Skipping nav for obsoleted: ${relativeFilePath}`);
   } else {
     const navTitle = frontMatter.nav_label || finalTitle;
-    processedPage = { file: outputFileName, title: navTitle, nav_order: frontMatter.nav_order };
+    processedPage = {
+      id: finalId,
+      file: outputFileName,
+      title: navTitle,
+      nav_order: frontMatter.nav_order,
+      parent: finalParent,
+    };
   }
 
   return { searchIndexEntry, searchDocMapEntry, processedPage };
@@ -601,9 +657,10 @@ async function processSingleMarkdownFile(relativeFilePath, docId, context) {
     await mkdir(path.dirname(outputFilePath), { recursive: true });
 
     const rawFileContent = await readFile(sourceFilePath, "utf-8");
-    const { frontMatter, htmlContent, pageTitle, textContent, sections } = _extractContentAndProcess(rawFileContent, relativeFilePath);
+    // Pass extracted ID and parent from front matter
+    const { frontMatter, htmlContent, pageTitle, textContent, sections, id: pageId, parent: pageParent } = _extractContentAndProcess(rawFileContent, relativeFilePath);
 
-    const prepParams = { docId, pageTitle, textContent, sections, frontMatter, outputFileName, relativeFilePath };
+    const prepParams = { docId, pageTitle, textContent, sections, frontMatter, outputFileName, relativeFilePath, pageId, pageParent };
     const { searchIndexEntry, searchDocMapEntry, processedPage } = _prepareSearchAndNavData(prepParams);
 
     await writeFile(outputFilePath, htmlContent);
@@ -919,7 +976,7 @@ async function performBuildProcess(buildContext) {
   await copyStaticAssets(buildContext);
   await writeVersionsFile(buildContext, allVersionsData);
 
-  console.log("\n--- Running Post-processing Steps (if any) ---"); // Placeholder
+  console.log("\n--- Running Post-processing Steps (if any) ---");
   console.log("\nDocumentation build finished successfully!");
   console.log(`Output available in: ${path.relative(buildContext.rootDir, buildContext.outputDir)}`);
 }
