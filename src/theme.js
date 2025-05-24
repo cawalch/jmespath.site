@@ -1,9 +1,9 @@
 // src/theme.js
 
 // Module-scoped variables to hold references to DOM elements
-let _htmlElement = null;
-let _themeToggleButton = null;
-let _siteLogoImage = null; // New variable for the site logo image
+let _htmlElement = null
+let _themeToggleButton = null
+let _siteLogoImage = null // New variable for the site logo image
 
 /**
  * Applies the visual theme ('light' or 'dark').
@@ -12,14 +12,14 @@ let _siteLogoImage = null; // New variable for the site logo image
  */
 function applyTheme(theme) {
   // Guard clause: ensure elements are available
-  if (!_htmlElement || !_themeToggleButton) return;
+  if (!_htmlElement || !_themeToggleButton) return
 
-  _htmlElement.classList.toggle("dark", theme === "dark");
-  _themeToggleButton.setAttribute("aria-pressed", theme === "dark");
+  _htmlElement.classList.toggle("dark", theme === "dark")
+  _themeToggleButton.setAttribute("aria-pressed", theme === "dark")
 
   // Update site logo image based on theme
   if (_siteLogoImage) {
-    _siteLogoImage.src = theme === "dark" ? "favicon-dark.svg" : "favicon.svg";
+    _siteLogoImage.src = theme === "dark" ? "favicon-dark.svg" : "favicon.svg"
   }
 }
 
@@ -29,14 +29,14 @@ function applyTheme(theme) {
  */
 function toggleTheme() {
   // Guard clause: ensure element is available
-  if (!_htmlElement) return;
+  if (!_htmlElement) return
 
-  const newTheme = _htmlElement.classList.contains("dark") ? "light" : "dark";
-  applyTheme(newTheme);
+  const newTheme = _htmlElement.classList.contains("dark") ? "light" : "dark"
+  applyTheme(newTheme)
   try {
-    localStorage.setItem("theme", newTheme);
+    localStorage.setItem("theme", newTheme)
   } catch (e) {
-    console.error("Could not save theme preference:", e);
+    console.error("Could not save theme preference:", e)
   }
 }
 
@@ -50,38 +50,38 @@ function toggleTheme() {
  */
 export function initializeTheme(htmlElement, themeToggleButton) {
   // Store the passed-in elements for use by internal functions
-  _htmlElement = htmlElement;
-  _themeToggleButton = themeToggleButton;
+  _htmlElement = htmlElement
+  _themeToggleButton = themeToggleButton
 
   if (!_htmlElement || !_themeToggleButton) {
-    console.error("Theme initialization failed: Missing required elements.");
-    return;
+    console.error("Theme initialization failed: Missing required elements.")
+    return
   }
 
   // Find the site logo image by its new ID
-  _siteLogoImage = document.getElementById("site-logo");
+  _siteLogoImage = document.getElementById("site-logo")
   if (!_siteLogoImage) {
-    console.warn("Theme initialization: Could not find site logo image element.");
+    console.warn("Theme initialization: Could not find site logo image element.")
     // Continue initialization, theme switching will work for other elements
   }
 
   // Determine and apply initial theme
-  const savedTheme = localStorage.getItem("theme");
+  const savedTheme = localStorage.getItem("theme")
   if (savedTheme) {
-    applyTheme(savedTheme);
+    applyTheme(savedTheme)
   } else {
-    const prefersDarkScheme = window.matchMedia("(prefers-color-scheme: dark)");
-    applyTheme(prefersDarkScheme.matches ? "dark" : "light");
+    const prefersDarkScheme = window.matchMedia("(prefers-color-scheme: dark)")
+    applyTheme(prefersDarkScheme.matches ? "dark" : "light")
   }
 
   // Add listener to the provided button
-  _themeToggleButton.addEventListener("click", toggleTheme);
+  _themeToggleButton.addEventListener("click", toggleTheme)
 
   // Add listener for system preference changes (only if no manual override exists)
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (event) => {
     // Check preference *inside* the listener, as user might have manually set one
     if (!localStorage.getItem("theme")) {
-      applyTheme(event.matches ? "dark" : "light");
+      applyTheme(event.matches ? "dark" : "light")
     }
-  });
+  })
 }
