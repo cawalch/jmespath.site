@@ -3,11 +3,13 @@ const { mkdir, rm, writeFile, readFile, readdir, copyFile } = require("node:fs/p
 const { globSync } = require("node:fs")
 const path = require("node:path")
 const { execSync } = require("node:child_process")
-const { marked } = require("marked")
 const { parse } = require("node-html-parser")
 const grayMatter = require("gray-matter")
 const FlexSearch = require("flexsearch")
 const esbuild = require("esbuild")
+
+// Dynamic import for marked (ES module)
+let marked
 
 // Playground class names
 const PLAYGROUND_CLASSES = {
@@ -214,11 +216,7 @@ const jmespathInteractiveExtension = {
   },
 }
 
-marked.setOptions({
-  gfm: true,
-})
-
-marked.use(headingRendererExtension, jmespathInteractiveExtension)
+// marked configuration will be done after dynamic import in main()
 
 /**
  * Finds files matching globs within a base path.
@@ -1113,6 +1111,17 @@ async function executeBuildSteps(options, buildContext) {
  * Main execution function.
  */
 async function main() {
+  // Dynamic import for marked (ES module)
+  const markedModule = await import("marked")
+  marked = markedModule.marked
+
+  // Configure marked
+  marked.setOptions({
+    gfm: true,
+  })
+
+  marked.use(headingRendererExtension, jmespathInteractiveExtension)
+
   const args = process.argv.slice(2)
   const options = parseArgs(args)
 
