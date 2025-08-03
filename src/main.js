@@ -434,6 +434,9 @@ class App {
   }
 }
 
+// Export the App class for testing
+export default App
+
 document.addEventListener("DOMContentLoaded", () => {
   const app = new App()
   app.initialize()

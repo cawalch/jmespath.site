@@ -1,0 +1,19 @@
+{
+  "specRepoUrl": "https://github.com/test/jmespath.spec.git",
+  "versions": [
+    {
+      "id": "test-current",
+      "ref": "main",
+      "label": "Test Current",
+      "isTag": false,
+      "sourcePath": "/",
+      "includeGlobs": ["*.md"],
+      "excludeGlobs": [],
+      "localDocsPath": "tests/fixtures/local-docs",
+      "localIncludeGlobs": ["**/*.md"]
+    }
+  ],
+  "defaultVersionId": "test-current",
+  "tempDir": "test-temp",
+  "outputDir": "test-output"
+}
