@@ -1,7 +1,7 @@
-import { initializeTheme } from "./theme.js"
 import { initializeJmespathPlaygrounds } from "./jmespathPlayground.js"
-import { initializeSearch, loadSearchIndex } from "./search.js"
 import { Navigation } from "./navigation.js"
+import { initializeSearch, loadSearchIndex } from "./search.js"
+import { initializeTheme } from "./theme.js"
 
 class App {
   constructor() {

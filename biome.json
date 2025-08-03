@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.0.6/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -7,7 +7,7 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "ignore": ["dist/", "node_modules/", "docs/"]
+    "includes": ["**", "!**/dist/", "!**/node_modules/", "!**/docs/"]
   },
   "formatter": {
     "enabled": true,
@@ -15,9 +15,7 @@
     "indentWidth": 2,
     "lineWidth": 120
   },
-  "organizeImports": {
-    "enabled": true
-  },
+  "assist": { "actions": { "source": { "organizeImports": "on" } } },
   "linter": {
     "enabled": true,
     "rules": {
@@ -37,12 +35,21 @@
           "options": {
             "strictCase": true,
             "requireAscii": true,
-            "enumMemberCase": "CONSTANT_CASE"
+            "conventions": [{ "selector": { "kind": "enumMember" }, "formats": ["CONSTANT_CASE"] }]
           }
         },
         "noUselessElse": "error",
         "noNegationElse": "warn",
-        "useTemplate": "warn"
+        "useTemplate": "warn",
+        "noParameterAssign": "error",
+        "useAsConstAssertion": "error",
+        "useDefaultParameterLast": "error",
+        "useEnumInitializers": "error",
+        "useSelfClosingElements": "error",
+        "useSingleVarDeclarator": "error",
+        "noUnusedTemplateLiteral": "error",
+        "useNumberNamespace": "error",
+        "noInferrableTypes": "error"
       },
       "correctness": {
         "noUnusedVariables": "error",
@@ -68,11 +75,21 @@
   },
   "overrides": [
     {
-      "include": ["src/*.js"],
+      "includes": ["**/src/**/*.js"],
       "linter": {
         "rules": {
           "suspicious": {
-            "noConsoleLog": "error"
+            "noConsole": { "level": "error", "options": { "allow": ["log", "warn", "error"] } }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["**/scripts/**/*.cjs", "**/scripts/**/*.js"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": "off"
           }
         }
       }

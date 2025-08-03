@@ -9,7 +9,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@biomejs/biome": "1.9.4",
+    "@biomejs/biome": "2.0.6",
     "esbuild": "^0.25.3",
     "flexsearch": "^0.8.158",
     "gray-matter": "^4.0.3",
