@@ -47,6 +47,36 @@ const tempDir = path.resolve(rootDir, config.tempDir)
 const outputDir = path.resolve(rootDir, config.outputDir)
 const srcDir = path.resolve(rootDir, "src")
 
+/**
+ * Generates build metadata including date and commit hash
+ */
+function generateBuildMetadata() {
+  const buildDate = new Date().toISOString()
+  let commitHash = "unknown"
+  let isCI = false
+
+  // Check if running in CI environment
+  if (process.env.GITHUB_SHA) {
+    commitHash = process.env.GITHUB_SHA.substring(0, 8)
+    isCI = true
+  } else {
+    // Try to get local commit hash
+    try {
+      const fullHash = execSync("git rev-parse HEAD", { encoding: "utf8", cwd: rootDir }).trim()
+      commitHash = fullHash.substring(0, 8)
+    } catch (error) {
+      console.warn("Could not determine git commit hash:", error.message)
+    }
+  }
+
+  return {
+    buildDate,
+    commitHash,
+    isCI,
+    buildEnvironment: isCI ? "GitHub Actions CI/CD" : "local development",
+  }
+}
+
 // Utility functions
 const hasValue = (value) => value !== undefined && value !== null
 const isTextNode = (node) => node.nodeType === 3
@@ -963,9 +993,36 @@ async function bundleJavaScript(buildContext) {
 }
 
 /**
+ * Processes HTML template and replaces footer with build metadata
+ */
+async function processHtmlTemplate(sourcePath, destPath, buildMetadata) {
+  const htmlContent = await readFile(sourcePath, "utf-8")
+
+  // Generate footer content with build metadata
+  const buildDateFormatted = new Date(buildMetadata.buildDate).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "UTC",
+  })
+
+  const footerContent = `JMESPath Community Edition Documentation Site | Built ${buildDateFormatted} UTC | Commit ${buildMetadata.commitHash} | ${buildMetadata.buildEnvironment}`
+
+  // Replace the footer content
+  const updatedHtml = htmlContent.replace(
+    /<footer>Generated Static Documentation Site<\/footer>/,
+    `<footer>${footerContent}</footer>`,
+  )
+
+  await writeFile(destPath, updatedHtml, "utf-8")
+}
+
+/**
  * Copies a single asset file
  */
-async function copySingleAsset(asset, buildContext) {
+async function copySingleAsset(asset, buildContext, buildMetadata = null) {
   if (!fs.existsSync(asset.source)) {
     const isOptional = asset.source.endsWith("index.html") || asset.source.endsWith("style.css")
     if (!isOptional) {
@@ -976,10 +1033,19 @@ async function copySingleAsset(asset, buildContext) {
 
   try {
     await mkdir(path.dirname(asset.dest), { recursive: true })
-    await copyFile(asset.source, asset.dest)
-    console.log(
-      `Copied ${path.relative(buildContext.rootDir, asset.source)} to ${path.relative(buildContext.rootDir, asset.dest)}`,
-    )
+
+    // Special handling for index.html to inject build metadata
+    if (asset.source.endsWith("index.html") && buildMetadata) {
+      await processHtmlTemplate(asset.source, asset.dest, buildMetadata)
+      console.log(
+        `Processed ${path.relative(buildContext.rootDir, asset.source)} to ${path.relative(buildContext.rootDir, asset.dest)} (with build metadata)`,
+      )
+    } else {
+      await copyFile(asset.source, asset.dest)
+      console.log(
+        `Copied ${path.relative(buildContext.rootDir, asset.source)} to ${path.relative(buildContext.rootDir, asset.dest)}`,
+      )
+    }
   } catch (copyError) {
     console.error(`Failed to copy asset ${path.relative(buildContext.rootDir, asset.source)}: ${copyError.message}`)
     throw copyError
@@ -992,13 +1058,17 @@ async function copySingleAsset(asset, buildContext) {
 async function copyStaticAssets(buildContext) {
   console.log("\nCopying other static assets (CSS, index.html, etc)...")
 
+  // Generate build metadata for HTML template processing
+  const buildMetadata = generateBuildMetadata()
+  console.log(`Build metadata: ${buildMetadata.buildEnvironment}, commit ${buildMetadata.commitHash}`)
+
   const assetFiles = ["style.css", "index.html", "favicon.svg", "favicon-dark.svg"]
   const assetsToCopy = assetFiles.map((file) => ({
     source: path.join(buildContext.srcDir, file),
     dest: path.join(buildContext.outputDir, file),
   }))
 
-  await Promise.all(assetsToCopy.map((asset) => copySingleAsset(asset, buildContext)))
+  await Promise.all(assetsToCopy.map((asset) => copySingleAsset(asset, buildContext, buildMetadata)))
   console.log("Finished copying other static assets.")
 }
 
