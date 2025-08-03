@@ -2,3 +2,11 @@ dist/
 node_modules/
 build/
 docs/
+
+# Test and coverage files
+coverage/
+test-results/
+playwright-report/
+
+# Local documentation
+local_docs/

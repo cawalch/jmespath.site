@@ -14,8 +14,15 @@ function applyTheme(theme) {
   // Guard clause: ensure elements are available
   if (!_htmlElement || !_themeToggleButton) return
 
-  _htmlElement.classList.toggle("dark", theme === "dark")
+  // Remove both theme classes and add the current one
+  _htmlElement.classList.remove("dark", "light")
+  _htmlElement.classList.add(theme)
+  _htmlElement.setAttribute("data-theme", theme)
   _themeToggleButton.setAttribute("aria-pressed", theme === "dark")
+
+  // Update button text content with emoji icons
+  // Dark theme shows sun (switch to light), light theme shows moon (switch to dark)
+  _themeToggleButton.textContent = theme === "dark" ? "☀" : "🌙"
 
   // Update site logo image based on theme
   if (_siteLogoImage) {
@@ -66,12 +73,21 @@ export function initializeTheme(htmlElement, themeToggleButton) {
   }
 
   // Determine and apply initial theme
+  // Check current state from HTML element (set by inline script)
+  let currentTheme = "light" // default
+  if (_htmlElement.classList.contains("dark")) {
+    currentTheme = "dark"
+  } else if (_htmlElement.classList.contains("light")) {
+    currentTheme = "light"
+  }
+
+  // Apply the theme to ensure all elements are in sync
+  applyTheme(currentTheme)
+
+  // If no saved theme, save the current one
   const savedTheme = localStorage.getItem("theme")
-  if (savedTheme) {
-    applyTheme(savedTheme)
-  } else {
-    const prefersDarkScheme = window.matchMedia("(prefers-color-scheme: dark)")
-    applyTheme(prefersDarkScheme.matches ? "dark" : "light")
+  if (!savedTheme) {
+    localStorage.setItem("theme", currentTheme)
   }
 
   // Add listener to the provided button

@@ -173,7 +173,7 @@ function executeFlexSearch(query) {
   try {
     results = searchIndex.search(query, {
       limit: 20,
-      suggest: true,
+      suggest: false,
       enrich: true,
     })
     return results

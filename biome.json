@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.0.6/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.1.3/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -7,7 +7,17 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!**/dist/", "!**/node_modules/", "!**/docs/"]
+    "includes": [
+      "**",
+      "!**/dist/",
+      "!**/node_modules/",
+      "!**/docs/",
+      "!**/build/",
+      "!**/coverage/",
+      "!**/test-results/",
+      "!**/playwright-report/",
+      "!**/local_docs/"
+    ]
   },
   "formatter": {
     "enabled": true,
@@ -88,6 +98,22 @@
       "includes": ["**/scripts/**/*.cjs", "**/scripts/**/*.js"],
       "linter": {
         "rules": {
+          "complexity": {
+            "noExcessiveCognitiveComplexity": "off"
+          },
+          "style": {
+            "useNamingConvention": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["**/tests/**/*.js", "**/test/**/*.js", "**/*.test.js", "**/*.spec.js", "**/playwright.config.js"],
+      "linter": {
+        "rules": {
+          "complexity": {
+            "noExcessiveCognitiveComplexity": "off"
+          },
           "style": {
             "useNamingConvention": "off"
           }
