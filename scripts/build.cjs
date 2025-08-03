@@ -1,7 +1,5 @@
 const fs = require("node:fs")
-const { promises: fsPromises } = require("node:fs")
-const { mkdir, rm, writeFile, readFile, readdir, copyFile } = fsPromises
-
+const { mkdir, rm, writeFile, readFile, readdir, copyFile } = require("node:fs/promises")
 const { globSync } = require("node:fs")
 const path = require("node:path")
 const { execSync } = require("node:child_process")
@@ -47,22 +45,20 @@ const tempDir = path.resolve(rootDir, config.tempDir)
 const outputDir = path.resolve(rootDir, config.outputDir)
 const srcDir = path.resolve(rootDir, "src")
 
+// Utility functions
+const hasValue = (value) => value !== undefined && value !== null
+const isTextNode = (node) => node.nodeType === 3
+const isElementNode = (node) => node.nodeType === 1
+
 /**
  * Helper function to extract text content from an HTML node, ignoring anchor tags and recursively processing children.
- * Handles text nodes and element nodes.
  */
 function extractNodeText(node) {
-  let text = ""
-  if (node.nodeType === 3) {
-    text += node.text
-  } else if (node.nodeType === 1) {
-    if (node.tagName.toLowerCase() !== "a") {
-      for (const child of node.childNodes) {
-        text += extractNodeText(child)
-      }
-    }
+  if (isTextNode(node)) return node.text
+  if (isElementNode(node) && node.tagName.toLowerCase() !== "a") {
+    return node.childNodes.map(extractNodeText).join("")
   }
-  return text
+  return ""
 }
 
 /**
@@ -99,54 +95,59 @@ const html = (strings, ...values) =>
   strings.reduce((acc, string, i) => acc + string + (values[i] === undefined ? "" : values[i]), "")
 
 /**
+ * Validates JSON and returns validation result
+ */
+function validateJson(jsonString) {
+  if (!jsonString) return { isValid: false, hasContent: false }
+  try {
+    JSON.parse(jsonString)
+    return { isValid: true, hasContent: true }
+  } catch {
+    return { isValid: false, hasContent: true }
+  }
+}
+
+/**
+ * Generates unique IDs for playground elements
+ */
+function generatePlaygroundIds() {
+  const suffix = Math.random().toString(36).substring(2, 9)
+  return {
+    jsonInputId: `json-input-${suffix}`,
+    queryInputId: `query-input-${suffix}`,
+    contentId: `playground-content-${suffix}`,
+  }
+}
+
+/**
  * Generates the HTML for an interactive JMESPath playground block.
- * @param {object} token - The Marked code token with lang === "jmespath-interactive".
- * @param {string} title - The title for the playground block.
- * @param {boolean} [isExpandedInitially=false] - Whether the block should be initially expanded.
- * @returns {string} - The generated HTML string.
  */
 function renderJmespathInteractiveBlock(token, title, isExpandedInitially = false) {
-  const rawContent = token.text
-  const parts = rawContent.split(/^\s*---JMESPATH---\s*$/m)
-  const initialJson = (parts[0] || "").trim()
-  const initialQuery = (parts[1] || "").trim()
-  let isValidJson = false
-  if (initialJson) {
-    try {
-      JSON.parse(initialJson)
-      isValidJson = true
-    } catch {
-      //nolint: ignore invalid JSON
-    }
-  }
-
-  const uniqueSuffix = Math.random().toString(36).substring(2, 9)
-  const jsonInputId = `json-input-${uniqueSuffix}`
-  const queryInputId = `query-input-${uniqueSuffix}`
-  const contentId = `playground-content-${uniqueSuffix}`
-  const jsonWarningClass = !isValidJson && initialJson ? PLAYGROUND_CLASSES.invalidJson : ""
-  const invalidJsonWarningHtml =
-    !isValidJson && initialJson ? `<p class="${PLAYGROUND_CLASSES.errorInline}">Initial JSON appears invalid.</p>` : ""
-
-  const ariaExpanded = isExpandedInitially ? "true" : "false"
-  const hiddenAttribute = isExpandedInitially ? "" : " hidden"
+  const [initialJson = "", initialQuery = ""] = token.text.split(/^\s*---JMESPATH---\s*$/m).map((s) => s.trim())
+  const { isValid: isValidJson, hasContent: hasJsonContent } = validateJson(initialJson)
+  const { jsonInputId, queryInputId, contentId } = generatePlaygroundIds()
 
   const displayTitle = title || "Interactive Example"
+  const jsonWarningClass = !isValidJson && hasJsonContent ? PLAYGROUND_CLASSES.invalidJson : ""
+  const invalidJsonWarning =
+    !isValidJson && hasJsonContent
+      ? `<p class="${PLAYGROUND_CLASSES.errorInline}">Initial JSON appears invalid.</p>`
+      : ""
 
   return html` <div class="${PLAYGROUND_CLASSES.container} my-6 border rounded-lg">
-    <button type="button" class="${PLAYGROUND_CLASSES.toggleButton}" aria-expanded="${ariaExpanded}" aria-controls="${contentId}">
+    <button type="button" class="${PLAYGROUND_CLASSES.toggleButton}" aria-expanded="${isExpandedInitially}" aria-controls="${contentId}">
       <span>${displayTitle}</span>
       <svg class="${PLAYGROUND_CLASSES.toggleIcon}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
       </svg>
     </button>
 
-    <div id="${contentId}" class="${PLAYGROUND_CLASSES.content}${hiddenAttribute}">
+    <div id="${contentId}" class="${PLAYGROUND_CLASSES.content}"${isExpandedInitially ? "" : " hidden"}>
       <div class="${PLAYGROUND_CLASSES.inputs}">
         <div>
           <label for="${jsonInputId}" class="${PLAYGROUND_CLASSES.label}">Input</label>
           <textarea id="${jsonInputId}" class="${PLAYGROUND_CLASSES.jsonInput} ${jsonWarningClass}" spellcheck="false">${initialJson}</textarea>
-          ${invalidJsonWarningHtml}
+          ${invalidJsonWarning}
         </div>
         <div>
           <label for="${queryInputId}" class="${PLAYGROUND_CLASSES.label}">Query</label>
@@ -269,6 +270,7 @@ function findFiles(findOptions, buildContext) {
 function runCommand(command, cwd, rootDir) {
   console.log(`Executing in ${path.relative(rootDir, cwd)}: ${command}`)
   try {
+    // eslint-disable-next-line camelcase
     const env = { ...process.env, GIT_TERMINAL_PROMPT: "0" }
     execSync(command, { stdio: "inherit", cwd, env })
   } catch (error) {
@@ -278,60 +280,34 @@ function runCommand(command, cwd, rootDir) {
 }
 
 /**
- * Compares two pages based on their parent ID.
- * Pages without a parent sort before pages with a parent.
- * If both have parents, sort by parent ID alphabetically.
+ * Generic comparator that handles null/undefined values consistently
  */
-function compareParent(a, b) {
-  const aHasParent = a.parent !== undefined && a.parent !== null
-  const bHasParent = b.parent !== undefined && b.parent !== null
+function createComparator(getValue, compareValues = (a, b) => a.localeCompare?.(b) || a - b) {
+  return (a, b) => {
+    const aValue = getValue(a)
+    const bValue = getValue(b)
+    const aHasValue = hasValue(aValue)
+    const bHasValue = hasValue(bValue)
 
-  if (!aHasParent && bHasParent) return -1
-  if (aHasParent && !bHasParent) return 1
-  if (aHasParent && bHasParent) {
-    // Optional: Sort by parent ID alphabetically if both have parents
-    return (a.parent || "").localeCompare(b.parent || "")
+    if (aHasValue && !bHasValue) return -1
+    if (!aHasValue && bHasValue) return 1
+    if (aHasValue && bHasValue) return compareValues(aValue, bValue)
+    return 0
   }
-  return 0 // Both have no parent
 }
 
-/**
- * Compares two pages based on their navigation order.
- * Pages with a nav_order sort before pages without.
- * If both have order, sort numerically.
- */
-function compareNavOrder(a, b) {
-  const aHasOrder = a.nav_order !== undefined && a.nav_order !== null
-  const bHasOrder = b.nav_order !== undefined && b.nav_order !== null
-
-  if (aHasOrder && !bHasOrder) return -1
-  if (!aHasOrder && bHasOrder) return 1
-  if (aHasOrder && bHasOrder) {
-    return Number(a.nav_order) - Number(b.nav_order)
-  }
-  return 0 // Both have no nav_order or equal order
-}
-
-/**
- * Compares two pages based on their title alphabetically.
- */
-function compareTitle(a, b) {
-  return a.title.localeCompare(b.title)
-}
+const compareParent = createComparator((page) => page.parent)
+const compareNavOrder = createComparator(
+  (page) => page.nav_order,
+  (a, b) => Number(a) - Number(b),
+)
+const compareTitle = createComparator((page) => page.title)
 
 /**
  * Comparator function to sort navigation pages.
- * Sorts by parent presence (null/undefined first), then by parent ID,
- * then by nav_order, and finally by title.
  */
 function compareNavPages(a, b) {
-  const parentComparison = compareParent(a, b)
-  if (parentComparison !== 0) return parentComparison
-
-  const orderComparison = compareNavOrder(a, b)
-  if (orderComparison !== 0) return orderComparison
-
-  return compareTitle(a, b)
+  return compareParent(a, b) || compareNavOrder(a, b) || compareTitle(a, b)
 }
 
 /**
@@ -473,119 +449,137 @@ class SearchProcessingState {
 }
 
 /**
- * Parses an HTML string using node-html-parser and handles potential errors.
+ * Safely parses HTML string and handles errors
  */
 function parseHtmlString(htmlString, identifier) {
   try {
     const root = parse(htmlString)
-    if (!root || typeof root.querySelector !== "function") {
-      console.warn(`    HTML parsing failed for: ${identifier}.`)
-      return null
-    }
-    return root
+    return root?.querySelector ? root : null
   } catch (parseError) {
-    console.error(`    Error during HTML parsing for ${identifier}: ${parseError.message}`)
+    console.error(`    Error parsing HTML for ${identifier}: ${parseError.message}`)
     return null
   }
 }
 
 /**
- * Extracts the title from the first H1 element in the parsed HTML root.
+ * Extracts title from H1 element or returns fallback
  */
 function extractTitleFromHtml(root, fallbackTitle) {
-  const h1Element = root.querySelector("h1")
-  if (h1Element) {
-    const extractedTitle = extractNodeText(h1Element)
-    return extractedTitle.trim() || fallbackTitle
-  }
-  return fallbackTitle
+  const h1Element = root?.querySelector("h1")
+  return h1Element ? extractNodeText(h1Element).trim() || fallbackTitle : fallbackTitle
 }
 
 /**
- * Extracts section headers (h2-h6) with their IDs and text from the parsed HTML root.
+ * Extracts section headers with IDs and text
  */
-function extractSectionsFromHtml(root, identifier) {
+function extractSectionsFromHtml(root) {
+  const headers = root?.querySelectorAll("h2[id], h3[id], h4[id], h5[id], h6[id]") || []
   const sections = []
-  const headers = root.querySelectorAll("h2[id], h3[id], h4[id], h5[id], h6[id]")
-  if (headers && typeof headers[Symbol.iterator] === "function") {
-    for (const header of headers) {
-      const id = header.getAttribute("id")
-      const level = Number.parseInt(header.tagName.substring(1), 10)
-      let headerText = extractNodeText(header)
-      headerText = headerText.trim()
 
-      if (id && headerText) sections.push({ id, text: headerText, level })
+  for (const header of headers) {
+    const id = header.getAttribute("id")
+    const level = Number.parseInt(header.tagName.substring(1), 10)
+    const headerText = extractNodeText(header).trim()
+
+    if (id && headerText) {
+      sections.push({ id, text: headerText, level })
     }
-  } else {
-    console.warn(`    Could not iterate over headers in: ${identifier}`)
   }
+
   return sections
 }
 
 /**
- * Removes elements with the playground class from the parsed HTML root.
+ * Removes playground elements from HTML
  */
 function removePlaygroundsFromHtml(root, identifier) {
-  const playgrounds = root.querySelectorAll(`.${PLAYGROUND_CLASSES.container}`)
-  if (playgrounds && typeof playgrounds[Symbol.iterator] === "function") {
-    let removedCount = 0
-    for (const el of playgrounds) {
-      el.remove()
-      removedCount++
-    }
-    if (removedCount > 0) {
-      console.log(`    Removed ${removedCount} playground(s) before text extraction for: ${identifier}`)
-    }
+  const playgrounds = root?.querySelectorAll(`.${PLAYGROUND_CLASSES.container}`) || []
+  const removedCount = playgrounds.length
+
+  for (const el of playgrounds) {
+    el.remove()
+  }
+
+  if (removedCount > 0) {
+    console.log(`    Removed ${removedCount} playground(s) before text extraction for: ${identifier}`)
   }
 }
 
 /**
- * Extracts text content from the parsed HTML root.
+ * Extracts text content from HTML root
  */
 function extractTextFromHtml(root) {
-  return root.structuredText || root.textContent || ""
+  return root?.structuredText || root?.textContent || ""
 }
 
 /**
- * Extracts front matter, markdown body, and processes markdown into HTML.
+ * Creates fallback title from filename
  */
-function _extractContentAndProcess(rawFileContent, relativeFilePath) {
+function createFallbackTitle(filePath) {
+  return path
+    .basename(filePath, ".md")
+    .replace(/[-_]/g, " ")
+    .replace(/\b\w/g, (l) => l.toUpperCase())
+}
+
+/**
+ * Processes markdown content and extracts metadata
+ */
+function processMarkdownContent(rawContent, filePath) {
   let frontMatter = {}
-  let markdownBody = rawFileContent
+  let markdownBody = rawContent
+
   try {
-    const parsed = grayMatter(rawFileContent)
+    const parsed = grayMatter(rawContent)
     frontMatter = parsed.data || {}
     markdownBody = parsed.content
   } catch (e) {
-    console.warn(`    Could not parse front matter for ${relativeFilePath}. Error: ${e.message}`)
+    console.warn(`    Could not parse front matter for ${filePath}. Error: ${e.message}`)
   }
-
-  const fallbackTitle = path
-    .basename(relativeFilePath, ".md")
-    .replace(/[-_]/g, " ")
-    .replace(/\b\w/g, (l) => l.toUpperCase())
 
   const htmlContent = marked.parse(markdownBody)
-  const root = parseHtmlString(htmlContent, relativeFilePath)
+  const fallbackTitle = createFallbackTitle(filePath)
 
-  let pageTitle = fallbackTitle
-  let sections = []
-  let textContent = markdownBody
+  return { frontMatter, htmlContent, markdownBody, fallbackTitle }
+}
 
-  if (root) {
-    pageTitle = extractTitleFromHtml(root, fallbackTitle)
-    sections = extractSectionsFromHtml(root, relativeFilePath)
-    removePlaygroundsFromHtml(root, relativeFilePath)
-    textContent = extractTextFromHtml(root)
-  } else {
-    console.warn(
-      `    Using fallback title "${fallbackTitle}" and raw markdown text for search for ${relativeFilePath} due to parsing failure.`,
-    )
+/**
+ * Extracts content data from HTML or falls back to markdown
+ */
+function extractContentData(htmlContent, markdownBody, fallbackTitle, filePath) {
+  const root = parseHtmlString(htmlContent, filePath)
+
+  if (!root) {
+    console.warn(`    Using fallback data for ${filePath} due to parsing failure.`)
+    return {
+      pageTitle: fallbackTitle,
+      sections: [],
+      textContent: markdownBody,
+    }
   }
 
-  // Extract ID and parent from front matter for navigation
-  const id = frontMatter.id
-  const parent = frontMatter.parent
+  const pageTitle = extractTitleFromHtml(root, fallbackTitle)
+  const sections = extractSectionsFromHtml(root)
+  removePlaygroundsFromHtml(root, filePath)
+  const textContent = extractTextFromHtml(root)
+
+  return { pageTitle, sections, textContent }
+}
+
+/**
+ * Main content processing function
+ */
+function _extractContentAndProcess(rawFileContent, relativeFilePath) {
+  const { frontMatter, htmlContent, markdownBody, fallbackTitle } = processMarkdownContent(
+    rawFileContent,
+    relativeFilePath,
+  )
+  const { pageTitle, sections, textContent } = extractContentData(
+    htmlContent,
+    markdownBody,
+    fallbackTitle,
+    relativeFilePath,
+  )
 
   return {
     frontMatter,
@@ -593,70 +587,84 @@ function _extractContentAndProcess(rawFileContent, relativeFilePath) {
     pageTitle,
     textContent,
     sections,
-    id, // Return extracted ID
-    parent, // Return extracted parent
+    id: frontMatter.id,
+    parent: frontMatter.parent,
   }
 }
 
 /**
- * Prepares the data needed for search index entries, search map entries, and navigation pages.
- * @param {object} params - Parameters for preparing data.
- * @param {number} params.docId - The document ID for this file.
- * @param {string} params.pageTitle - The extracted/derived page title.
- * @param {string} params.textContent - The extracted text content for search.
- * @param {Array} params.sections - Extracted section data.
- * @param {object} params.frontMatter - Parsed front matter data.
- * @param {string} params.outputFileName - The output HTML file name.
- * @param {string} params.relativeFilePath - The original relative Markdown file path.
- * @param {string} params.pageId - The extracted/derived page ID.
- * @param {string | undefined} params.pageParent - The extracted parent ID.
- * @returns {{searchIndexEntry: object, searchDocMapEntry: object, processedPage: object | null}}
+ * Checks if content is obsoleted based on front matter
+ */
+function isContentObsoleted(frontMatter) {
+  return !!(
+    frontMatter?.obsoleted_by ||
+    frontMatter?.status?.toLowerCase() === "obsoleted" ||
+    frontMatter?.status?.toLowerCase() === "superseded"
+  )
+}
+
+/**
+ * Creates search index entry
+ */
+function createSearchIndexEntry(docId, title, textContent, sections, isObsoleted) {
+  return {
+    id: docId,
+    title,
+    content: textContent,
+    sectionsText: sections.map((s) => s.text).join(" "),
+    isObsoleted,
+  }
+}
+
+/**
+ * Creates search document map entry
+ */
+function createSearchDocMapEntry(docId, title, outputFileName, sections, isObsoleted) {
+  return {
+    docId,
+    mapEntry: {
+      title,
+      href: outputFileName,
+      sections,
+      isObsoleted,
+    },
+  }
+}
+
+/**
+ * Creates navigation page entry
+ */
+function createNavPageEntry(pageId, relativeFilePath, frontMatter, outputFileName, title, parent) {
+  const finalId = pageId || relativeFilePath.replace(/\.md$/, "").replace(/\\/g, "/")
+  const navTitle = frontMatter.nav_label || title
+
+  return {
+    id: finalId,
+    file: outputFileName,
+    title: navTitle,
+    navOrder: frontMatter.nav_order,
+    parent,
+  }
+}
+
+/**
+ * Prepares search and navigation data from processed content
  */
 function _prepareSearchAndNavData(params) {
   const { docId, pageTitle, textContent, sections, frontMatter, outputFileName, relativeFilePath, pageId, pageParent } =
     params
 
-  // Use the extracted ID or default to relative path without extension
-  const finalId = pageId || relativeFilePath.replace(/\.md$/, "").replace(/\\/g, "/")
   const finalTitle = frontMatter.title || pageTitle
-  const finalParent = pageParent // Use the extracted parent
-  const isObsoleted =
-    frontMatter?.obsoleted_by ||
-    frontMatter?.status?.toLowerCase() === "obsoleted" ||
-    frontMatter?.status?.toLowerCase() === "superseded"
-  const sectionsText = sections.map((s) => s.text).join(" ")
+  const isObsoleted = isContentObsoleted(frontMatter)
 
-  const searchIndexEntry = {
-    id: docId, // FlexSearch uses a numeric ID; the human-readable ID is for navigation/mapping
-    title: finalTitle,
-    content: textContent,
-    sections_text: sectionsText,
-    isObsoleted: isObsoleted,
-  }
-
-  const searchDocMapEntry = {
-    docId: docId,
-    mapEntry: {
-      title: finalTitle,
-      href: outputFileName,
-      sections: sections,
-      isObsoleted: isObsoleted,
-      // No need for ID/parent in search map, it maps docId to page info
-    },
-  }
+  const searchIndexEntry = createSearchIndexEntry(docId, finalTitle, textContent, sections, isObsoleted)
+  const searchDocMapEntry = createSearchDocMapEntry(docId, finalTitle, outputFileName, sections, isObsoleted)
 
   let processedPage = null
   if (isObsoleted) {
     console.log(`    Skipping nav for obsoleted: ${relativeFilePath}`)
   } else {
-    const navTitle = frontMatter.nav_label || finalTitle
-    processedPage = {
-      id: finalId,
-      file: outputFileName,
-      title: navTitle,
-      nav_order: frontMatter.nav_order,
-      parent: finalParent,
-    }
+    processedPage = createNavPageEntry(pageId, relativeFilePath, frontMatter, outputFileName, finalTitle, pageParent)
   }
 
   return { searchIndexEntry, searchDocMapEntry, processedPage }
@@ -664,10 +672,6 @@ function _prepareSearchAndNavData(params) {
 
 /**
  * Processes a single Markdown file asynchronously.
- * @param {string} relativeFilePath - File path relative to sourceDir.
- * @param {number} docId - The document ID to use for search indexing.
- * @param {{sourceDir: string, versionOutputPath: string, fileSourceType: string}} context - Context for file processing.
- * @returns {Promise<{searchIndexEntry: object | null, searchDocMapEntry: object | null, processedPage: object | null, error: Error | null}>}
  */
 async function processSingleMarkdownFile(relativeFilePath, docId, context) {
   const { sourceDir, versionOutputPath, fileSourceType } = context
@@ -679,18 +683,10 @@ async function processSingleMarkdownFile(relativeFilePath, docId, context) {
 
   try {
     await mkdir(path.dirname(outputFilePath), { recursive: true })
-
     const rawFileContent = await readFile(sourceFilePath, "utf-8")
-    // Pass extracted ID and parent from front matter
-    const {
-      frontMatter,
-      htmlContent,
-      pageTitle,
-      textContent,
-      sections,
-      id: pageId,
-      parent: pageParent,
-    } = _extractContentAndProcess(rawFileContent, relativeFilePath)
+
+    const contentData = _extractContentAndProcess(rawFileContent, relativeFilePath)
+    const { frontMatter, htmlContent, pageTitle, textContent, sections, id: pageId, parent: pageParent } = contentData
 
     const prepParams = {
       docId,
@@ -706,24 +702,39 @@ async function processSingleMarkdownFile(relativeFilePath, docId, context) {
     const { searchIndexEntry, searchDocMapEntry, processedPage } = _prepareSearchAndNavData(prepParams)
 
     await writeFile(outputFilePath, htmlContent)
-
     return { searchIndexEntry, searchDocMapEntry, processedPage, error: null }
   } catch (processError) {
     console.error(`    Failed processing file ${relativeFilePath}: ${processError.message}`)
-    return {
-      searchIndexEntry: null,
-      searchDocMapEntry: null,
-      processedPage: null,
-      error: processError,
-    }
+    return { searchIndexEntry: null, searchDocMapEntry: null, processedPage: null, error: processError }
   }
 }
 
 /**
- * Processes a list of Markdown files from a given source directory (in parallel).
- * @param {string[]} files - Array of file paths relative to sourceDir.
- * @param {{sourceDir: string, versionOutputPath: string, fileSourceType: string, searchState: SearchProcessingState}} context - Context object.
- * @returns {Promise<Array>} - Array of processed pages suitable for navigation.
+ * Processes results from file processing and updates search state
+ */
+function processFileResults(results, searchState) {
+  const processedPages = []
+  let successfulCount = 0
+  let failedCount = 0
+
+  for (const result of results) {
+    if (result.status === "fulfilled" && result.value?.error === null) {
+      const { searchIndexEntry, searchDocMapEntry, processedPage } = result.value
+      searchState.searchIndex.add(searchIndexEntry)
+      searchState.searchDocMap[searchDocMapEntry.docId] = searchDocMapEntry.mapEntry
+
+      if (processedPage) processedPages.push(processedPage)
+      successfulCount++
+    } else {
+      failedCount++
+    }
+  }
+
+  return { processedPages, successfulCount, failedCount }
+}
+
+/**
+ * Processes a list of Markdown files in parallel
  */
 async function processMarkdownFiles(files, context) {
   const { sourceDir, versionOutputPath, fileSourceType, searchState } = context
@@ -735,38 +746,13 @@ async function processMarkdownFiles(files, context) {
 
   console.log(`  Processing ${files.length} ${fileSourceType} files in parallel...`)
 
-  const filesWithIds = files.map((file, index) => ({
-    relativeFilePath: file,
-    docId: searchState.docIdCounter + index,
-  }))
-
-  const processingPromises = filesWithIds.map(({ relativeFilePath, docId }) =>
-    processSingleMarkdownFile(relativeFilePath, docId, {
-      sourceDir,
-      versionOutputPath,
-      fileSourceType,
-    }),
-  )
+  const processingPromises = files.map((file, index) => {
+    const docId = searchState.docIdCounter + index
+    return processSingleMarkdownFile(file, docId, { sourceDir, versionOutputPath, fileSourceType })
+  })
 
   const results = await Promise.allSettled(processingPromises)
-
-  const processedPages = []
-  let successfulCount = 0
-  let failedCount = 0
-
-  for (const result of results) {
-    if (result.status === "fulfilled" && result.value && result.value.error === null) {
-      const { searchIndexEntry, searchDocMapEntry, processedPage } = result.value
-      searchState.searchIndex.add(searchIndexEntry)
-      searchState.searchDocMap[searchDocMapEntry.docId] = searchDocMapEntry.mapEntry
-      if (processedPage) {
-        processedPages.push(processedPage)
-      }
-      successfulCount++
-    } else {
-      failedCount++
-    }
-  }
+  const { processedPages, successfulCount, failedCount } = processFileResults(results, searchState)
 
   console.log(`  Finished processing files. Successful: ${successfulCount}, Failed: ${failedCount}.`)
   searchState.updateDocId(files.length)
@@ -774,118 +760,93 @@ async function processMarkdownFiles(files, context) {
 }
 
 /**
- * Clones or updates a Git repository.
- * @param {object} repoDetails - Details of the repository.
- * @param {string} repoDetails.repoUrl - The URL of the Git repository.
- * @param {string} repoDetails.targetPath - The path where the repository should be.
- * @param {string} repoDetails.ref - The Git reference (branch or tag).
- * @param {object} buildContext - The build context containing rootDir.
+ * Clones or updates a Git repository
  */
-async function cloneOrUpdateRepo(repoDetails, buildContext) {
-  const { repoUrl, targetPath, ref } = repoDetails
-  const { rootDir } = buildContext
+async function cloneOrUpdateRepo(repoUrl, targetPath, ref, rootDir) {
+  const relativePath = path.relative(rootDir, targetPath)
 
   if (fs.existsSync(targetPath)) {
-    console.log(`Repository already exists at ${path.relative(rootDir, targetPath)}. Fetching updates...`)
+    console.log(`Repository already exists at ${relativePath}. Fetching updates...`)
     runCommand("git fetch --all --tags --prune", targetPath, rootDir)
   } else {
-    console.log(`Cloning ${repoUrl} (ref: ${ref}) into ${path.relative(rootDir, targetPath)}...`)
+    console.log(`Cloning ${repoUrl} (ref: ${ref}) into ${relativePath}...`)
     await mkdir(path.dirname(targetPath), { recursive: true })
     runCommand(`git clone --no-checkout ${repoUrl} ${targetPath}`, rootDir, rootDir)
   }
 }
 
 /**
- * Checks out a specific Git reference.
- * @param {object} checkoutDetails - Details for checkout.
- * @param {string} checkoutDetails.repoPath - Path to the repository.
- * @param {string} checkoutDetails.ref - The Git reference to checkout.
- * @param {boolean} checkoutDetails.isTag - Whether the ref is a tag.
- * @param {object} buildContext - The build context containing rootDir.
+ * Checks out a specific Git reference
  */
-function checkoutRef(checkoutDetails, buildContext) {
-  const { repoPath, ref, isTag } = checkoutDetails
-  const { rootDir } = buildContext
-
-  console.log(`Checking out ${isTag ? "tag" : "branch"}: ${ref} in ${path.relative(rootDir, repoPath)}`)
+function checkoutRef(repoPath, ref, isTag, rootDir) {
+  const relativePath = path.relative(rootDir, repoPath)
+  console.log(`Checking out ${isTag ? "tag" : "branch"}: ${ref} in ${relativePath}`)
   runCommand(`git checkout -f ${ref}`, repoPath, rootDir)
   runCommand("git clean -fdx", repoPath, rootDir)
 }
 
+/**
+ * Prepares Git repository for a single version
+ */
+async function prepareVersionRepo(version, buildContext) {
+  const versionClonePath = path.join(buildContext.tempDir, version.id)
+
+  try {
+    await cloneOrUpdateRepo(buildContext.config.specRepoUrl, versionClonePath, version.ref, buildContext.rootDir)
+    checkoutRef(versionClonePath, version.ref, version.isTag, buildContext.rootDir)
+  } catch {
+    console.error(`--- Error during Git operations for version ${version.label}. Skipping. ---`)
+  }
+}
+
+/**
+ * Performs all Git operations for the build
+ */
 async function performGitOperations(buildContext) {
   console.log(`\nCleaning up old temporary directory: ${path.relative(buildContext.rootDir, buildContext.tempDir)}...`)
+
   try {
     await rm(buildContext.tempDir, { recursive: true, force: true })
     await mkdir(buildContext.tempDir, { recursive: true })
   } catch (err) {
-    console.error(
-      `Error cleaning temp directory ${path.relative(buildContext.rootDir, buildContext.tempDir)}: ${err.message}`,
-    )
+    console.error(`Error cleaning temp directory: ${err.message}`)
   }
 
   for (const version of buildContext.config.versions) {
     console.log(`\n--- Preparing source for version: ${version.label} (ref: ${version.ref}) ---`)
-    const versionClonePath = path.join(buildContext.tempDir, version.id)
-    try {
-      const repoDetails = {
-        repoUrl: buildContext.config.specRepoUrl,
-        targetPath: versionClonePath,
-        ref: version.ref,
-      }
-      await cloneOrUpdateRepo(repoDetails, buildContext)
-
-      const checkoutDetails = {
-        repoPath: versionClonePath,
-        ref: version.ref,
-        isTag: version.isTag,
-      }
-      checkoutRef(checkoutDetails, buildContext)
-    } catch {
-      console.error(`--- Error during Git operations for version ${version.label}. Skipping. ---`)
-    }
+    await prepareVersionRepo(version, buildContext)
   }
+
   console.log("\n--- Finished Git Operations ---")
 }
 
 /**
- * Helper to process files from a specific source type (Spec or Local) for a version.
- * @param {object} sourceArgs - Arguments specific to this source processing.
- * @param {string} sourceArgs.sourceBasePath - Absolute path to the source directory.
- * @param {string} sourceArgs.versionOutputPath - Absolute path to the version's output directory.
- * @param {SearchProcessingState} sourceArgs.searchState - Mutable search state instance.
- * @param {string} sourceArgs.fileSourceType - Label for the source type ("Spec" or "Local").
- * @param {object} versionConfig - The configuration object for the version.
- * @param {BuildContext} buildContext - The overall build context.
- * @returns {Promise<Array>} - Array of processed pages for navigation.
+ * Gets glob patterns for file processing based on source type
+ */
+function getGlobPatterns(versionConfig, fileSourceType) {
+  return fileSourceType === "Spec"
+    ? { includeGlobs: versionConfig.includeGlobs, excludeGlobs: versionConfig.excludeGlobs }
+    : { includeGlobs: versionConfig.localIncludeGlobs || ["**/*.md"], excludeGlobs: versionConfig.localExcludeGlobs }
+}
+
+/**
+ * Processes files from a specific source type for a version
  */
 async function _processVersionSourceFiles(sourceArgs, versionConfig, buildContext) {
   const { sourceBasePath, versionOutputPath, searchState, fileSourceType } = sourceArgs
 
-  const { includeGlobs, excludeGlobs } =
-    fileSourceType === "Spec"
-      ? {
-          includeGlobs: versionConfig.includeGlobs,
-          excludeGlobs: versionConfig.excludeGlobs,
-        }
-      : {
-          includeGlobs: versionConfig.localIncludeGlobs || ["**/*.md"],
-          excludeGlobs: versionConfig.localExcludeGlobs,
-        }
-
   if (!fs.existsSync(sourceBasePath)) {
+    const relativePath = path.relative(buildContext.rootDir, sourceBasePath)
     console.warn(
-      `--- Warning: ${fileSourceType} source path does not exist for version ${versionConfig.label}: ${path.relative(buildContext.rootDir, sourceBasePath)}. Skipping ${fileSourceType} files. ---`,
+      `--- Warning: ${fileSourceType} source path does not exist for version ${versionConfig.label}: ${relativePath}. Skipping ${fileSourceType} files. ---`,
     )
     return []
   }
 
+  const { includeGlobs, excludeGlobs } = getGlobPatterns(versionConfig, fileSourceType)
   const files = findFiles({ basePath: sourceBasePath, includeGlobs, excludeGlobs }, buildContext)
-  const context = {
-    sourceDir: sourceBasePath,
-    versionOutputPath,
-    searchState: searchState,
-    fileSourceType,
-  }
+  const context = { sourceDir: sourceBasePath, versionOutputPath, searchState, fileSourceType }
+
   return await processMarkdownFiles(files, context)
 }
 
@@ -1004,49 +965,42 @@ async function bundleJavaScript(buildContext) {
 }
 
 /**
- * Copies other static assets (CSS, index.html, etc.).
+ * Copies a single asset file
+ */
+async function copySingleAsset(asset, buildContext) {
+  if (!fs.existsSync(asset.source)) {
+    const isOptional = asset.source.endsWith("index.html") || asset.source.endsWith("style.css")
+    if (!isOptional) {
+      console.warn(`Asset source not found, skipping copy: ${path.relative(buildContext.rootDir, asset.source)}`)
+    }
+    return
+  }
+
+  try {
+    await mkdir(path.dirname(asset.dest), { recursive: true })
+    await copyFile(asset.source, asset.dest)
+    console.log(
+      `Copied ${path.relative(buildContext.rootDir, asset.source)} to ${path.relative(buildContext.rootDir, asset.dest)}`,
+    )
+  } catch (copyError) {
+    console.error(`Failed to copy asset ${path.relative(buildContext.rootDir, asset.source)}: ${copyError.message}`)
+    throw copyError
+  }
+}
+
+/**
+ * Copies static assets (CSS, HTML, favicons)
  */
 async function copyStaticAssets(buildContext) {
   console.log("\nCopying other static assets (CSS, index.html, etc)...")
-  const assetsToCopy = [
-    {
-      source: path.join(buildContext.srcDir, "style.css"),
-      dest: path.join(buildContext.outputDir, "style.css"),
-    },
-    {
-      source: path.join(buildContext.srcDir, "index.html"),
-      dest: path.join(buildContext.outputDir, "index.html"),
-    },
-    {
-      source: path.join(buildContext.srcDir, "favicon.svg"),
-      dest: path.join(buildContext.outputDir, "favicon.svg"),
-    },
-    {
-      source: path.join(buildContext.srcDir, "favicon-dark.svg"),
-      dest: path.join(buildContext.outputDir, "favicon-dark.svg"),
-    },
-  ]
 
-  await Promise.all(
-    assetsToCopy.map(async (asset) => {
-      try {
-        if (fs.existsSync(asset.source)) {
-          await mkdir(path.dirname(asset.dest), { recursive: true })
-          await copyFile(asset.source, asset.dest)
-          console.log(
-            `Copied ${path.relative(buildContext.rootDir, asset.source)} to ${path.relative(buildContext.rootDir, asset.dest)}`,
-          )
-        } else {
-          if (!asset.source.endsWith("index.html") && !asset.source.endsWith("style.css")) {
-            console.warn(`Asset source not found, skipping copy: ${path.relative(buildContext.rootDir, asset.source)}`)
-          }
-        }
-      } catch (copyError) {
-        console.error(`Failed to copy asset ${path.relative(buildContext.rootDir, asset.source)}: ${copyError.message}`)
-        throw copyError
-      }
-    }),
-  )
+  const assetFiles = ["style.css", "index.html", "favicon.svg", "favicon-dark.svg"]
+  const assetsToCopy = assetFiles.map((file) => ({
+    source: path.join(buildContext.srcDir, file),
+    dest: path.join(buildContext.outputDir, file),
+  }))
+
+  await Promise.all(assetsToCopy.map((asset) => copySingleAsset(asset, buildContext)))
   console.log("Finished copying other static assets.")
 }
 
@@ -1088,7 +1042,7 @@ async function performBuildProcess(buildContext) {
 }
 
 /**
- * Parses command line arguments.
+ * Parses command line arguments
  */
 function parseArgs(args) {
   const gitOnly = args.includes("--git-only")
@@ -1102,10 +1056,9 @@ function parseArgs(args) {
   return { gitOnly, buildOnly, help }
 }
 
-function runPreProcessing() {
-  console.log("\n--- Running Pre-processing Steps (if any) ---")
-}
-
+/**
+ * Shows help message
+ */
 function showHelp(scriptPath, currentRootDir) {
   console.log(`
 Usage: node ${path.relative(currentRootDir, scriptPath)} [options]
@@ -1125,24 +1078,22 @@ If no options are specified, both Git operations and the full build process are 
 }
 
 /**
- * Executes the main build steps based on parsed arguments.
+ * Executes the main build steps
  */
 async function executeBuildSteps(options, buildContext) {
   const { gitOnly, buildOnly } = options
-
   const shouldRunGit = !buildOnly
   const shouldRunBuild = !gitOnly
 
-  runPreProcessing()
+  console.log("\n--- Running Pre-processing Steps (if any) ---")
 
   if (shouldRunGit) {
     await performGitOperations(buildContext)
   } else {
     console.log("\n--- Skipping Git Operations ---")
     if (shouldRunBuild && !fs.existsSync(buildContext.tempDir)) {
-      console.error(
-        `--- Error: --build-only used, but temp dir missing: ${path.relative(buildContext.rootDir, buildContext.tempDir)} ---`,
-      )
+      const relativePath = path.relative(buildContext.rootDir, buildContext.tempDir)
+      console.error(`--- Error: --build-only used, but temp dir missing: ${relativePath} ---`)
       process.exit(1)
     }
   }
