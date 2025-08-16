@@ -57,6 +57,10 @@
   --shadow-error-focus: rgba(220, 38, 38, 0.4);
   --sidebar-link-vertical-padding: 0.5rem;
   --sidebar-indent-amount: 1rem;
+  --success-color: #22c55e;
+  --warning-color: #f59e0b;
+  --success-color-light: #4ade80;
+  --warning-color-light: #fbbf24;
 }
 
 /* Define Dark Theme Variables */
@@ -116,6 +120,10 @@ html.dark {
   --shadow-inset: inset 0 1px 2px rgba(55, 65, 81, 0.4);
   --shadow-error-focus: rgba(248, 113, 113, 0.4);
   --sidebar-indent-amount: 0.5rem;
+  --success-color: #4ade80;
+  --warning-color: #fbbf24;
+  --success-color-light: #4ade80;
+  --warning-color-light: #fbbf24;
 }
 
 /* Apply Variables */
@@ -422,7 +430,7 @@ html:not(.dark) #theme-toggle .moon-icon {
 }
 
 #sidebar-nav {
-  width: 260px;
+  width: 320px;
   background-color: var(--sidebar-bg-color);
   border-right: 1px solid var(--border-color);
   padding: 1rem 0;
@@ -911,4 +919,120 @@ footer {
   to {
     outline: 2px solid transparent;
   }
+}
+
+/* JEP-specific navigation styling */
+.nav-jep-container {
+  border-top: 1px solid var(--border-color);
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+}
+
+.nav-jep-container .nav-label {
+  font-weight: 600;
+  color: var(--text-color);
+  font-size: 0.9rem;
+}
+
+.nav-jep-status-group .nav-label {
+  font-weight: 500;
+  font-size: 0.85rem;
+  color: var(--text-muted-color);
+}
+
+/* Status-specific styling for JEP groups */
+.nav-jep-status-accepted .nav-label {
+  color: var(--success-color);
+}
+
+.nav-jep-status-draft .nav-label {
+  color: var(--warning-color);
+}
+
+.nav-jep-status-obsoleted .nav-label {
+  color: var(--text-muted-color);
+}
+
+.nav-jep-status-rejected .nav-label {
+  color: var(--error-text-color);
+}
+
+/* Individual JEP item styling */
+.nav-jep-item .nav-link {
+  font-size: 0.85rem;
+  padding-left: 0.25rem;
+  border-left: 3px solid transparent;
+  transition: border-color 0.2s ease;
+}
+
+.nav-jep-accepted .nav-link {
+  border-left-color: var(--success-color);
+}
+
+.nav-jep-draft .nav-link {
+  border-left-color: var(--warning-color);
+}
+
+.nav-jep-obsoleted .nav-link {
+  border-left-color: var(--text-muted-color);
+  opacity: 0.7;
+}
+
+.nav-jep-rejected .nav-link {
+  border-left-color: var(--error-text-color);
+  opacity: 0.7;
+}
+
+/* Hover effects for JEP items */
+.nav-jep-item:hover .nav-link {
+  background-color: var(--code-bg-color);
+  border-radius: 4px;
+}
+
+/* Dark mode adjustments for JEP styling */
+html.dark .nav-jep-status-accepted .nav-label {
+  color: var(--success-color-light);
+}
+
+html.dark .nav-jep-status-draft .nav-label {
+  color: var(--warning-color-light);
+}
+
+html.dark .nav-jep-status-obsoleted .nav-label {
+  color: var(--text-muted-color);
+}
+
+html.dark .nav-jep-status-rejected .nav-label {
+  color: var(--error-text-color);
+}
+
+html.dark .nav-jep-accepted .nav-link {
+  border-left-color: var(--success-color-light);
+}
+
+html.dark .nav-jep-draft .nav-link {
+  border-left-color: var(--warning-color-light);
+}
+
+html.dark .nav-jep-obsoleted .nav-link {
+  border-left-color: var(--text-muted-color);
+}
+
+html.dark .nav-jep-rejected .nav-link {
+  border-left-color: var(--error-text-color);
+}
+
+/* Tooltip styling for navigation items */
+.nav-link[title],
+.nav-label[title] {
+  /* Tooltips available on hover, no cursor change needed */
+}
+
+/* Improve text truncation handling */
+.nav-link-content-wrapper .nav-link,
+.nav-link-content-wrapper .nav-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-grow: 1;
 }

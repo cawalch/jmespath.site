@@ -32,11 +32,135 @@ export class Navigation {
   }
 
   /**
+   * Separates JEPs from regular pages and organizes them by status
+   * @param {Array<object>} pages - Flat array of page objects.
+   * @returns {object} - Object with regularPages and jepPages arrays
+   */
+  separateJepsFromPages(pages) {
+    const regularPages = []
+    const jepPages = []
+
+    for (const page of pages) {
+      if (page.jepMetadata) {
+        jepPages.push(page)
+      } else {
+        regularPages.push(page)
+      }
+    }
+
+    return { regularPages, jepPages }
+  }
+
+  /**
+   * Groups JEPs by status and creates status containers
+   * @param {Array<object>} jepPages - Array of JEP page objects
+   * @returns {Array<object>} - Array of status group containers
+   */
+  createJepStatusGroups(jepPages) {
+    const statusGroups = {
+      accepted: [],
+      draft: [],
+      obsoleted: [],
+      rejected: [],
+    }
+
+    // Group JEPs by status
+    for (const jep of jepPages) {
+      const status = jep.jepMetadata.status || "draft"
+      if (statusGroups[status]) {
+        statusGroups[status].push(jep)
+      }
+    }
+
+    // Create status containers
+    const statusContainers = []
+
+    if (statusGroups.accepted.length > 0) {
+      statusContainers.push({
+        id: "jep-accepted",
+        title: "Accepted Proposals",
+        isJepStatusGroup: true,
+        status: "accepted",
+        children: statusGroups.accepted,
+        navOrder: 1,
+      })
+    }
+
+    if (statusGroups.draft.length > 0) {
+      statusContainers.push({
+        id: "jep-draft",
+        title: "Draft Proposals",
+        isJepStatusGroup: true,
+        status: "draft",
+        children: statusGroups.draft,
+        navOrder: 2,
+      })
+    }
+
+    if (statusGroups.obsoleted.length > 0) {
+      statusContainers.push({
+        id: "jep-obsoleted",
+        title: "Obsoleted Proposals",
+        isJepStatusGroup: true,
+        status: "obsoleted",
+        children: statusGroups.obsoleted,
+        navOrder: 3,
+      })
+    }
+
+    if (statusGroups.rejected.length > 0) {
+      statusContainers.push({
+        id: "jep-rejected",
+        title: "Rejected Proposals",
+        isJepStatusGroup: true,
+        status: "rejected",
+        children: statusGroups.rejected,
+        navOrder: 4,
+      })
+    }
+
+    return statusContainers
+  }
+
+  /**
    * Builds a hierarchical tree structure from a flat list of pages.
    * @param {Array<object>} pages - Flat array of page objects.
    * @returns {Array<object>} - Array representing the root level of the navigation tree.
    */
   buildNavigationTree(pages) {
+    const { regularPages, jepPages } = this.separateJepsFromPages(pages)
+
+    // Build regular navigation tree
+    const regularTree = this.buildRegularNavigationTree(regularPages)
+
+    // Create JEP section if there are JEPs
+    if (jepPages.length > 0) {
+      const jepStatusGroups = this.createJepStatusGroups(jepPages)
+
+      // Create main JEP container
+      const jepContainer = {
+        id: "jep-main",
+        title: "Specifications",
+        isJepContainer: true,
+        children: jepStatusGroups,
+        navOrder: 1000, // Place at end
+      }
+
+      // Sort JEPs within each status group
+      this.sortJepsInStatusGroups(jepContainer.children)
+
+      return [...regularTree, jepContainer]
+    }
+
+    return regularTree
+  }
+
+  /**
+   * Builds navigation tree for regular (non-JEP) pages
+   * @param {Array<object>} pages - Array of regular page objects
+   * @returns {Array<object>} - Navigation tree for regular pages
+   */
+  buildRegularNavigationTree(pages) {
     const pagesById = new Map()
     const rootPages = []
 
@@ -86,6 +210,130 @@ export class Navigation {
   }
 
   /**
+   * Sorts JEPs within status groups by JEP number and maintains parent-child relationships
+   * @param {Array<object>} statusGroups - Array of status group containers
+   */
+  sortJepsInStatusGroups(statusGroups) {
+    for (const statusGroup of statusGroups) {
+      if (statusGroup.children && statusGroup.children.length > 0) {
+        statusGroup.children = this.buildSortedJepTree(statusGroup.children)
+      }
+    }
+  }
+
+  /**
+   * Builds a sorted tree structure from JEP children
+   * @param {Array<object>} jeps - Array of JEP objects
+   * @returns {Array<object>} - Sorted tree of JEPs
+   */
+  buildSortedJepTree(jeps) {
+    const { rootJeps } = this.buildJepParentChildRelationships(jeps)
+    this.sortJepTreeRecursively(rootJeps)
+    return rootJeps
+  }
+
+  /**
+   * Builds parent-child relationships for JEPs
+   * @param {Array<object>} jeps - Array of JEP objects
+   * @returns {object} - Object containing jepsById map and rootJeps array
+   */
+  buildJepParentChildRelationships(jeps) {
+    const jepsById = new Map()
+    const rootJeps = []
+
+    // First pass: Create map of JEPs by ID
+    for (const jep of jeps) {
+      jepsById.set(jep.id, { ...jep, children: [] })
+    }
+
+    // Second pass: Build parent-child relationships
+    for (const jep of jeps) {
+      const jepNode = jepsById.get(jep.id)
+      if (jep.parent && jepsById.has(jep.parent)) {
+        const parentNode = jepsById.get(jep.parent)
+        parentNode.children.push(jepNode)
+      } else {
+        rootJeps.push(jepNode)
+      }
+    }
+
+    return { jepsById, rootJeps }
+  }
+
+  /**
+   * Sorts JEP tree recursively by JEP number
+   * @param {Array<object>} rootJeps - Array of root JEP nodes
+   */
+  sortJepTreeRecursively(rootJeps) {
+    rootJeps.sort(this.createJepComparator())
+    for (const rootJep of rootJeps) {
+      this.sortJepChildrenRecursively(rootJep)
+    }
+  }
+
+  /**
+   * Recursively sorts children of a JEP node
+   * @param {object} jepNode - JEP node to sort children for
+   */
+  sortJepChildrenRecursively(jepNode) {
+    if (jepNode.children.length > 0) {
+      jepNode.children.sort(this.createJepComparator())
+      for (const child of jepNode.children) {
+        this.sortJepChildrenRecursively(child)
+      }
+    }
+  }
+
+  /**
+   * Creates a comparator function for sorting JEPs by number
+   * @returns {Function} - Comparator function
+   */
+  createJepComparator() {
+    return (a, b) => {
+      const aNum = this.extractJepNumber(a)
+      const bNum = this.extractJepNumber(b)
+
+      if (aNum !== bNum) {
+        return aNum - bNum
+      }
+
+      // If numbers are the same, sort by full JEP number string (for 12a vs 12b)
+      const aFull = a.jepMetadata?.jepNumber || ""
+      const bFull = b.jepMetadata?.jepNumber || ""
+      return aFull.localeCompare(bFull)
+    }
+  }
+
+  /**
+   * Extracts numeric part from JEP number for sorting
+   * @param {object} jep - JEP object
+   * @returns {number} - Numeric part of JEP number, or 999 if not found
+   */
+  extractJepNumber(jep) {
+    if (jep.jepMetadata?.jepNumber) {
+      // Extract numeric part (e.g., "12a" -> 12)
+      const match = String(jep.jepMetadata.jepNumber).match(/(\d+)/)
+      return match ? Number.parseInt(match[1], 10) : 999
+    }
+    return 999
+  }
+
+  /**
+   * Adds appropriate CSS classes for JEP items
+   * @param {HTMLElement} li - The list item element
+   * @param {object} page - The page object
+   */
+  addJepClasses(li, page) {
+    if (page.isJepContainer) {
+      li.classList.add("nav-jep-container")
+    } else if (page.isJepStatusGroup) {
+      li.classList.add("nav-jep-status-group", `nav-jep-status-${page.status}`)
+    } else if (page.jepMetadata) {
+      li.classList.add("nav-jep-item", `nav-jep-${page.jepMetadata.status}`)
+    }
+  }
+
+  /**
    * Renders a navigation link element.
    * @param {object} page - The page object.
    * @param {string} versionId - The current version ID.
@@ -100,6 +348,9 @@ export class Navigation {
     if (depth > 0) {
       li.classList.add(`nav-indent-${depth}`)
     }
+
+    // Add special classes for JEP containers and status groups
+    this.addJepClasses(li, page)
 
     const contentWrapper = document.createElement("div")
     contentWrapper.classList.add("nav-link-content-wrapper")
@@ -116,14 +367,33 @@ export class Navigation {
       contentWrapper.appendChild(toggleButton)
     }
 
-    const a = document.createElement("a")
-    a.href = `#${versionId}/${page.file}`
-    a.textContent = page.title
-    a.dataset.version = versionId
-    a.dataset.file = page.file
-    a.classList.add("nav-link")
+    // Create link or span based on whether this is a container/group or actual page
+    if (page.isJepContainer || page.isJepStatusGroup) {
+      const span = document.createElement("span")
+      span.textContent = page.title
+      span.classList.add("nav-label")
+      span.title = page.title // Add tooltip for full title
+      contentWrapper.appendChild(span)
+    } else {
+      const a = document.createElement("a")
+      a.href = `#${versionId}/${page.file}`
+      a.dataset.version = versionId
+      a.dataset.file = page.file
+      a.classList.add("nav-link")
 
-    contentWrapper.appendChild(a)
+      // Add JEP number prefix for JEP items
+      if (page.jepMetadata?.jepNumber) {
+        const fullTitle = `JEP-${page.jepMetadata.jepNumber}: ${page.title}`
+        a.textContent = fullTitle
+        a.title = fullTitle // Add tooltip for full title
+      } else {
+        a.textContent = page.title
+        a.title = page.title // Add tooltip for full title
+      }
+
+      contentWrapper.appendChild(a)
+    }
+
     li.appendChild(contentWrapper)
     return li
   }
