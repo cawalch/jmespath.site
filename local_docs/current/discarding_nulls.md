@@ -4,32 +4,35 @@ nav_label: Discarding nulls
 nav_order: 2
 ---
 
-## Problem statement
+# Discarding Null Values
 
-Discarding `null` values is a surprisingly frequently requested feature from JMESPath.
-The canonical answer is to use the `merge()` function and let external deserializers discard / ignore those values.
+## Problem Statement
 
-That said, the `items()`, `from_items()` and `zip()` functions let you build primitives to achieve this.
+Discarding ```null``` values is a frequently requested feature in JMESPath. While the canonical approach involves using the ```merge()``` function and relying on external deserializers, the ```items()```, ```from_items()```, and ```zip()``` functions provide primitives to achieve this filtering directly within JMESPath expressions.
 
-## How to
+## Basic Object Filtering
 
-Given:
+Given this input:
 
 ```json
 { "a": 1, "b": "", "c": null }
 ```
 
-The following expressions can be useful:
+The following expressions can be used:
 
-- ``from_items( items(@) [? @[1]!=`null` ]  )`` returns `{ "a": 1, "b": "" }`
-- `from_items( items(@) [? @[1]!='' ]  )` returns `{ "a": 1, "c": null }`
-- `from_items( items(@) [? @[1] ]  )` returns `{ "a": 1 }`
+- ``from_items(items(@)[?@[1]!=```null```])`` returns ```{ "a": 1, "b": "" }```
+- ``from_items(items(@)[?@[1]!=''])`` returns ```{ "a": 1, "c": null }```
+- ``from_items(items(@)[?@[1]])`` returns ```{ "a": 1 }```
 
-### More complex objects
+### Explanation
 
-The previous primitives can be used in more complex scenarios where the discarded values are in nested object structures.
+- ```items(@)``` converts the object to an array of key-value pairs: ```[["a",1], ["b",""], ["c",null]]```
+- ```[?@[1]!=```null```]``` filters out entries where the value (at index 1) is ```null```
+- ```from_items()``` converts the filtered array back to an object
 
-Given:
+## Nested Object Filtering
+
+For more complex scenarios with nested objects:
 
 ```json
 {
@@ -38,25 +41,34 @@ Given:
 }
 ```
 
-This requires a way to split keys from their values, operate on the values using one of the primitives referred to above, and reconstruct the object.
+The solution requires:
 
-The following expressions are needed:
+- ```keys(@)``` to extract top-level keys
+- ```values(@)[*].from_items(items(@)[?@[1]])``` to process each nested object
+- ```let``` expressions to bind intermediate values
 
-- `keys(@)` to extract the key from the object.
-- `values(@)[*].from_items( items(@)[?@[1]] )` to discard all _falsy_ values, that include both `null` and empty strings.
+### Complete Expression
 
-Given those two expressions, the `let-expression` lets you create a scope to hold both keys and computed values, and operate on them:
+```
+let $k = keys(@), $v = values(@)[*].from_items(items(@)[?@[1]]) in zip($k, $v)
+```
 
-`let $k = keys(@), $v = values(@)[*].from_items( items(@)[?@[1]] ) in … `
+### Step-by-Step Breakdown
 
-The first part of the `let-expression` creates two named bindings, `$k` and `$v` that hold the keys from the original input and the newly computed values respectively.
+- The ```let``` expression creates two bindings:
+  - ```$k``` holds the top-level keys: ```["key1", "key2"]```
+  - ```$v``` holds the processed nested objects:
+    - For ```key1```: ```{ "a": 1 }``` (after removing falsy values)
+    - For ```key2```: ```{ "a": 2, "b": "bee" }```
 
-The second part to the `let-expression` is an `expression` that can be used to operate on said named bindings.
+- ```zip($k, $v)``` combines these back into the final object:
+  ```
+  {
+    "key1": { "a": 1 },
+    "key2": { "a": 2, "b": "bee" }
+  }
+  ```
 
-To reconstruct an object from a given set of keys and values, use the following expression:
+This pattern can be adapted for different filtering criteria by modifying the expression inside the filter ```[?@[1]]```.
 
-`zip($k, $v)`
 
-Here is the full expression:
-
-`let $k = keys(@), $v = values(@)[*].from_items( items(@)[?@[1]] ) in zip($k, $v)`
