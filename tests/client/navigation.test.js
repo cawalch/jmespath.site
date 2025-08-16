@@ -115,6 +115,18 @@ describe("Navigation Functionality", () => {
       expect(pages[0].title).toBe("With Order")
       expect(pages[1].title).toBe("Without Order")
     })
+
+    it("should correctly sort pages with navOrder property (camelCase)", () => {
+      const pages = [
+        { title: "Discarding nulls", navOrder: 2 },
+        { title: "Home", navOrder: 1 },
+      ]
+
+      pages.sort(compareNavPages)
+
+      expect(pages[0].title).toBe("Home")
+      expect(pages[1].title).toBe("Discarding nulls")
+    })
   })
 
   describe("Navigation Tree Building", () => {
