@@ -3,7 +3,14 @@ const path = require("node:path")
 const { parse } = require("node-html-parser")
 const grayMatter = require("gray-matter")
 const { PLAYGROUND_CLASSES, HEADER_ANCHOR_CLASS, PREFERRED_DEFAULT_FILES } = require("./constants")
-const { extractRawTextFromTokens, html, validateJson, generatePlaygroundIds, extractNodeText } = require("./utilities")
+const {
+  extractRawTextFromTokens,
+  escapeHtml,
+  html,
+  validateJson,
+  generatePlaygroundIds,
+  extractNodeText,
+} = require("./utilities")
 const { isContentObsoleted, createSearchIndexEntry, createSearchDocMapEntry } = require("./search-index")
 
 /**
@@ -33,12 +40,12 @@ function renderJmespathInteractiveBlock(token, title, isExpandedInitially = fals
       <div class="${PLAYGROUND_CLASSES.inputs}">
         <div>
           <label for="${jsonInputId}" class="${PLAYGROUND_CLASSES.label}">Input</label>
-          <textarea id="${jsonInputId}" class="${PLAYGROUND_CLASSES.jsonInput} ${jsonWarningClass}" spellcheck="false">${initialJson}</textarea>
+          <textarea id="${jsonInputId}" class="${PLAYGROUND_CLASSES.jsonInput} ${jsonWarningClass}" spellcheck="false">${escapeHtml(initialJson)}</textarea>
           ${invalidJsonWarning}
         </div>
         <div>
           <label for="${queryInputId}" class="${PLAYGROUND_CLASSES.label}">Query</label>
-          <textarea id="${queryInputId}" class="${PLAYGROUND_CLASSES.queryInput}" spellcheck="false">${initialQuery}</textarea>
+          <textarea id="${queryInputId}" class="${PLAYGROUND_CLASSES.queryInput}" spellcheck="false">${escapeHtml(initialQuery)}</textarea>
         </div>
       </div>
       <div class="mt-4">

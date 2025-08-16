@@ -18,6 +18,17 @@ Some content here.
 test
 ```
 
+```jmespath-interactive HTML Entity Test
+{
+  "logs": [
+    {"timestamp": "2023-01-01T08:00:00Z", "level": "info", "message": "System started"},
+    {"timestamp": "2023-01-01T08:05:23Z", "level": "error", "message": "Database connection failed"}
+  ]
+}
+---JMESPATH---
+logs[?level=='error'] | sort_by(@, &timestamp) | [0]
+```
+
 ## Section 2
 
 More content with a [link](https://example.com).

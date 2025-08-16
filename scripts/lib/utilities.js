@@ -46,6 +46,19 @@ function extractRawTextFromTokens(tokenList) {
   return text
 }
 
+/**
+ * Escapes HTML entities in a string to prevent XSS and rendering issues
+ */
+function escapeHtml(text) {
+  if (typeof text !== "string") return text
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+}
+
 // A simple tag function for readability
 const html = (strings, ...values) =>
   strings.reduce((acc, string, i) => acc + string + (values[i] === undefined ? "" : values[i]), "")
@@ -157,6 +170,7 @@ module.exports = {
   isElementNode,
   extractNodeText,
   extractRawTextFromTokens,
+  escapeHtml,
   html,
   validateJson,
   generatePlaygroundIds,
