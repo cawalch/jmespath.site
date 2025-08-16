@@ -1,14 +1,14 @@
 // navigation.js
 
-// Compares two page objects based on their nav_order.
+// Compares two page objects based on their navOrder.
 function compareNavOrder(a, b) {
-  const aHasOrder = a.nav_order !== undefined && a.nav_order !== null
-  const bHasOrder = b.nav_order !== undefined && b.nav_order !== null
+  const aHasOrder = a.navOrder !== undefined && a.navOrder !== null
+  const bHasOrder = b.navOrder !== undefined && b.navOrder !== null
 
   if (aHasOrder && !bHasOrder) return -1
   if (!aHasOrder && bHasOrder) return 1
   if (aHasOrder && bHasOrder) {
-    return Number(a.nav_order) - Number(b.nav_order)
+    return Number(a.navOrder) - Number(b.navOrder)
   }
   return 0
 }
