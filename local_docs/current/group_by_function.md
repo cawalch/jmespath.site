@@ -34,7 +34,14 @@ The function takes an array of objects and groups them by the result of evaluati
 group_by(employees, &department)
 ```
 
-This groups employees by their department, creating an object where each key is a department name and each value is an array of employees in that department.
+**Grouping result structure:**
+- `&department` extracts the department value from each employee
+- Result creates three groups:
+  - `"Engineering"`: [Alice, Charlie] - 2 employees
+  - `"Marketing"`: [Bob, Diana] - 2 employees
+  - `"Sales"`: [Eve] - 1 employee
+- Each group key is the department name, each value is an array of employee objects
+- Original employee objects are preserved unchanged within their groups
 
 ### Grouping with Nested Properties
 
@@ -158,11 +165,49 @@ group_by(logs, &service)
     }, @)
 ```
 
-This expression counts log entries per service:
-1. **Groups** logs by their `service` field (api, db, etc.)
-2. **Converts** to key-value pairs where each pair is [service_name, logs_array]
-3. **Counts** logs per service using `length(@[1])` on the logs array
-4. **Outputs** objects with service name and log count for monitoring purposes
+**What this log analysis pipeline accomplishes:**
+
+1. **`group_by(logs, &service)`** - Groups logs by service name:
+   ```
+   {
+     "api": [
+       {"timestamp": "2023-08-01T10:00:00Z", "level": "info", "service": "api"},
+       {"timestamp": "2023-08-01T10:05:00Z", "level": "error", "service": "api"},
+       {"timestamp": "2023-08-01T10:15:00Z", "level": "warning", "service": "api"}
+     ],
+     "db": [
+       {"timestamp": "2023-08-01T10:10:00Z", "level": "info", "service": "db"},
+       {"timestamp": "2023-08-01T10:20:00Z", "level": "error", "service": "db"}
+     ]
+   }
+   ```
+
+2. **`| items(@)`** - Converts grouped object to key-value pairs:
+   ```
+   [
+     ["api", [array of 3 api logs]],
+     ["db", [array of 2 db logs]]
+   ]
+   ```
+
+3. **`| map(&{service: @[0], count: length(@[1])}, @)`** - Transforms each pair into a summary object:
+   - `@[0]` extracts the service name ("api" or "db")
+   - `@[1]` is the array of logs for that service
+   - `length(@[1])` counts the logs in each group
+
+4. **Final result** - Service monitoring summary:
+   ```
+   [
+     {"service": "api", "count": 3},
+     {"service": "db", "count": 2}
+   ]
+   ```
+
+**Real-world applications:**
+- **System monitoring**: Track log volume per microservice for capacity planning
+- **Error analysis**: Identify which services generate the most errors
+- **Performance metrics**: Monitor service activity levels over time
+- **Alerting systems**: Trigger alerts when log counts exceed thresholds
 
 ## Error Handling and Edge Cases
 
