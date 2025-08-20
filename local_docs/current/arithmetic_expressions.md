@@ -33,7 +33,11 @@ The supported arithmetic operators are:
 price + (price * tax_rate)
 ```
 
-This calculates the total price including tax for a single item.
+**Step-by-step calculation:**
+1. `price * tax_rate` calculates the tax amount: 100 * 0.08 = 8
+2. `price + (...)` adds the tax to the original price: 100 + 8 = 108
+3. The parentheses ensure tax is calculated first, following mathematical order of operations
+4. Result: 108 (the total price including tax)
 
 ### Working with Arrays
 
@@ -55,7 +59,14 @@ sales[*].{
 }
 ```
 
-This demonstrates calculating profit and profit margin for each month.
+**Array arithmetic breakdown:**
+- `sales[*]` applies the projection to each month's data
+- `profit: revenue - expenses` calculates: Jan: 7000, Feb: 8500, Mar: 11000
+- `profit_margin: (revenue - expenses) / revenue` computes the percentage:
+  - Jan: 7000 / 15000 = 0.4667 (46.67%)
+  - Feb: 8500 / 18000 = 0.4722 (47.22%)
+  - Mar: 11000 / 22000 = 0.5 (50%)
+- Each object gets its own calculated fields while preserving the original data
 
 ## Operator Precedence
 
@@ -211,8 +222,10 @@ Arithmetic operations can produce errors in certain conditions:
 }
 ---JMESPATH---
 {
-  "safe_division": data.valid_number / (data.zero + `1`),
-  "with_null": data.valid_number + data.null_value
+  "valid_number": data.valid_number,
+  "zero_value": data.zero,
+  "null_value": data.null_value,
+  "string_value": data.string_value
 }
 ```
 

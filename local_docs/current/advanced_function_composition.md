@@ -27,10 +27,13 @@ The pipe operator (```|```) enables chaining multiple transformations together, 
 users[?active==`true`].{Name: name, Domain: split(email, '@')[1]} | sort_by(@, &Name)
 ```
 
-This expression:
-1. Filters for active users
-2. Projects a new object with name and email domain
-3. Sorts the result by name
+**Pipeline breakdown:**
+1. `users[?active==true]` filters to get Alice and Charlie (Bob is inactive)
+2. `.{Name: name, Domain: split(email, '@')[1]}` transforms each user:
+   - `Name: name` copies the name field
+   - `Domain: split(email, '@')[1]` extracts domain from email (e.g., "example.com")
+3. `| sort_by(@, &Name)` sorts the resulting array by the Name field
+4. Final result: [{"Name": "Alice", "Domain": "example.com"}, {"Name": "Charlie", "Domain": "example.com"}]
 
 The equivalent TypeScript implementation would be:
 
@@ -75,9 +78,15 @@ products[?price < `1000` && (stock > `0` || category == 'electronics')].{
 }
 ```
 
-This expression filters products that are either:
-- Under $1000 AND in stock, OR
-- Under $1000 AND in the electronics category (even if out of stock)
+**Complex filtering logic explained:**
+- **Filter condition**: `price < 1000 && (stock > 0 || category == 'electronics')`
+  - Laptop ($1200): Excluded (price >= $1000)
+  - Phone ($800, electronics, no stock): Included (under $1000 AND electronics)
+  - Table ($300, 10 stock): Included (under $1000 AND in stock)
+  - Chair ($150, 2 stock): Included (under $1000 AND in stock)
+- **Status logic**: Nested conditional expressions determine availability:
+  - If `stock > 0`: Check if `stock > 5` for "In Stock" vs "Limited Availability"
+  - If `stock = 0`: Return "Out of Stock"
 
 The TypeScript equivalent demonstrates how JMESPath's concise syntax abstracts complex logic:
 
@@ -164,7 +173,36 @@ Given JMESPath's frequent use in API responses and data processing pipelines, se
 users[].from_items(items(@)[?!contains(['ssn', 'api_key'], @[0])])
 ```
 
-This expression safely filters out sensitive fields (```ssn```, ```api_key```) from user records. The TypeScript equivalent would require careful handling to avoid accidental data leakage:
+**What this security filtering accomplishes:**
+
+1. **`users[]`** - Iterates through each user object in the array
+
+2. **`items(@)`** - Converts each user object to key-value pairs:
+   - Alice: `[["id", "usr_123"], ["name", "Alice Smith"], ["email", "alice@example.com"], ["ssn", "123-45-6789"], ["api_key", "sk_test_12345"], ["roles", ["admin", "billing"]]]`
+
+3. **`[?!contains(['ssn', 'api_key'], @[0])]`** - Filters out sensitive fields:
+   - `@[0]` refers to the key (first element of each pair)
+   - `contains(['ssn', 'api_key'], @[0])` checks if the key is in the sensitive list
+   - `!` negates the condition, keeping only non-sensitive fields
+   - Result for Alice: `[["id", "usr_123"], ["name", "Alice Smith"], ["email", "alice@example.com"], ["roles", ["admin", "billing"]]]`
+
+4. **`from_items(...)`** - Reconstructs clean objects without sensitive data
+
+**Final sanitized result**:
+```
+[
+  {"id": "usr_123", "name": "Alice Smith", "email": "alice@example.com", "roles": ["admin", "billing"]},
+  {"id": "usr_456", "name": "Bob Jones", "email": "bob@example.com", "roles": ["user"]}
+]
+```
+
+**Security benefits:**
+- **Automatic PII removal**: Eliminates SSN and API keys from responses
+- **Whitelist approach**: Only explicitly safe fields are included
+- **Audit trail**: Clear visibility into what data is being filtered
+- **Consistent sanitization**: Same logic applied to all user records
+
+The TypeScript equivalent would require careful handling to avoid accidental data leakage:
 
 ```typescript
 function sanitizeUser(user: any) {

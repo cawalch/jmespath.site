@@ -31,6 +31,9 @@ node scripts/build.cjs
 
 - `--git-only`: Only clone/update repositories, skip build process
 - `--build-only` or `--skip-git`: Only build, skip Git operations
+- `--skip-validation`: Skip JMESPath validation during build
+- `--fail-on-validation-error`: Fail build if JMESPath validation errors are found
+- `-v, --verbose`: Show detailed output including validation results
 - `--help` or `-h`: Show help
 
 ## Configuration
@@ -54,6 +57,45 @@ Configure the build process via `config.json`:
 - `outputDir`: Output directory (default: `docs`)
 
 Generated files are placed in the `docs` directory. Serve locally with `npx http-server docs`.
+
+## JMESPath Validation
+
+The build system includes automatic validation of JMESPath queries in interactive code blocks to ensure all examples work correctly.
+
+### Validation Scripts
+
+- `npm run validate`: Validate all JMESPath queries in documentation
+- `npm run validate:verbose`: Show detailed validation output
+- `npm run validate:strict`: Fail fast on first validation error
+- `npm run build:strict`: Build with validation errors causing build failure
+
+### Validation Features
+
+- **Automatic Detection**: Finds all `jmespath-interactive` code blocks in markdown files
+- **JSON Validation**: Ensures input JSON is valid and parseable
+- **Query Execution**: Tests JMESPath queries against the provided JSON data
+- **Error Reporting**: Shows detailed error messages with file names and line numbers
+- **Build Integration**: Runs automatically during build process (non-blocking by default)
+
+### Validation Output
+
+The validator reports:
+- Total files and blocks processed
+- Number of successful vs failed validations
+- Detailed error messages for failed queries
+- Warnings for empty inputs or other issues
+
+Example output:
+```
+=== JMESPath Validation Results ===
+Files: 10/11 successful
+Blocks: 45/50 successful
+❌ 5 blocks failed validation
+
+❌ /path/to/file.md
+   Block "Example Query" (line 42):
+     ❌ JMESPath query error: Syntax error, unexpected token
+```
 
 ## Navigation Organization
 
@@ -84,6 +126,7 @@ JEPs are organized by status:
 - `scripts/lib/git-operations.js`: Git repository management and checkout
 - `scripts/lib/asset-management.js`: JavaScript bundling and static asset processing
 - `scripts/lib/version-processing.js`: Version processing orchestration
+- `scripts/lib/jmespath-validation.js`: JMESPath query validation for interactive examples
 
 ## Markdown Features
 

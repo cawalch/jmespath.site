@@ -8,6 +8,7 @@ const { performGitOperations } = require("./lib/git-operations")
 const { bundleJavaScript, copyStaticAssets } = require("./lib/asset-management")
 const { configureMarked } = require("./lib/content-processing")
 const { processVersions, writeVersionsFile } = require("./lib/version-processing")
+const { validateMultipleFiles, findMarkdownFiles, formatValidationResults } = require("./lib/jmespath-validation")
 
 // Dynamic import for marked (ES module)
 let marked
@@ -16,9 +17,67 @@ let marked
 const { config, rootDir, tempDir, outputDir, srcDir } = loadBuildConfig(__dirname)
 
 /**
+ * Validates JMESPath queries in documentation files
+ */
+async function performJmespathValidation(buildContext, options = {}) {
+  const { skipValidation = false, failOnValidationError = false, verbose = false } = options
+
+  if (skipValidation) {
+    console.log("\n--- Skipping JMESPath Validation ---")
+    return true
+  }
+
+  console.log("\n--- Validating JMESPath Queries ---")
+
+  try {
+    // Find all markdown files in local_docs and temp directories
+    const localDocsPath = path.join(buildContext.rootDir, "local_docs")
+    const tempDocsPath = buildContext.tempDir
+
+    const filesToValidate = []
+
+    // Add local docs if they exist
+    if (fs.existsSync(localDocsPath)) {
+      const localFiles = await findMarkdownFiles(localDocsPath)
+      filesToValidate.push(...localFiles)
+    }
+
+    // Add temp docs if they exist
+    if (fs.existsSync(tempDocsPath)) {
+      const tempFiles = await findMarkdownFiles(tempDocsPath)
+      filesToValidate.push(...tempFiles)
+    }
+
+    if (filesToValidate.length === 0) {
+      console.log("No markdown files found for validation.")
+      return true
+    }
+
+    console.log(`Validating ${filesToValidate.length} markdown file(s)...`)
+
+    const results = await validateMultipleFiles(filesToValidate, { verbose })
+
+    formatValidationResults(results, { verbose, showWarnings: true })
+
+    if (!results.success && failOnValidationError) {
+      console.error("\n❌ Build failed due to JMESPath validation errors.")
+      process.exit(1)
+    }
+
+    return results.success
+  } catch (error) {
+    console.error(`\nJMESPath validation error: ${error.message}`)
+    if (failOnValidationError) {
+      process.exit(1)
+    }
+    return false
+  }
+}
+
+/**
  * Performs the documentation build process.
  */
-async function performBuildProcess(buildContext) {
+async function performBuildProcess(buildContext, options = {}) {
   console.log("\nStarting documentation build...")
 
   await setupOutputDirectory(buildContext)
@@ -27,7 +86,9 @@ async function performBuildProcess(buildContext) {
   await copyStaticAssets(buildContext)
   await writeVersionsFile(buildContext, allVersionsData)
 
-  console.log("\n--- Running Post-processing Steps (if any) ---")
+  console.log("\n--- Running Post-processing Steps ---")
+  await performJmespathValidation(buildContext, options)
+
   console.log("\nDocumentation build finished successfully!")
   console.log(`Output available in: ${path.relative(buildContext.rootDir, buildContext.outputDir)}`)
 }
@@ -39,12 +100,22 @@ function parseArgs(args) {
   const gitOnly = args.includes("--git-only")
   const buildOnly = args.includes("--build-only") || args.includes("--skip-git")
   const help = args.includes("--help") || args.includes("-h")
+  const skipValidation = args.includes("--skip-validation")
+  const failOnValidationError = args.includes("--fail-on-validation-error")
+  const verbose = args.includes("--verbose") || args.includes("-v")
 
   if (gitOnly && buildOnly) {
     console.error("--- Error: Cannot use --git-only and --build-only together. ---")
     process.exit(1)
   }
-  return { gitOnly, buildOnly, help }
+  return {
+    gitOnly,
+    buildOnly,
+    help,
+    skipValidation,
+    failOnValidationError,
+    verbose,
+  }
 }
 
 /**
@@ -57,14 +128,18 @@ Usage: node ${path.relative(currentRootDir, scriptPath)} [options]
 Builds the documentation site by cloning/updating source repositories and processing Markdown files.
 
 Options:
-  --git-only      Only perform the Git clone/update and checkout steps. Skip the build process.
-  --build-only    Only perform the build process (Markdown to HTML, copy assets). Assumes source
-                  repositories are already present in the temporary directory (--tempDir).
-                  Equivalent to --skip-git.
-  --skip-git      Alias for --build-only.
-  --help, -h      Show this help message and exit.
+  --git-only                   Only perform the Git clone/update and checkout steps. Skip the build process.
+  --build-only                 Only perform the build process (Markdown to HTML, copy assets). Assumes source
+                               repositories are already present in the temporary directory (--tempDir).
+                               Equivalent to --skip-git.
+  --skip-git                   Alias for --build-only.
+  --skip-validation            Skip JMESPath validation during the build process.
+  --fail-on-validation-error   Fail the build if JMESPath validation errors are found.
+  -v, --verbose                Show detailed output including validation results.
+  --help, -h                   Show this help message and exit.
 
 If no options are specified, both Git operations and the full build process are performed (default behavior).
+JMESPath validation is performed by default but does not fail the build unless --fail-on-validation-error is used.
 `)
 }
 
@@ -90,7 +165,7 @@ async function executeBuildSteps(options, buildContext) {
   }
 
   if (shouldRunBuild) {
-    await performBuildProcess(buildContext)
+    await performBuildProcess(buildContext, options)
   } else {
     console.log("\n--- Skipping Documentation Build ---")
   }

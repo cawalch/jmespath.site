@@ -33,7 +33,11 @@ The function takes an expression and an array, applying the expression to each e
 map(&name, users)
 ```
 
-This extracts the `name` property from each user object, creating an array of names in the same order as the original array.
+**How map() works here:**
+- `&name` is an expression reference that extracts the `name` property
+- `map()` applies this expression to each element in the `users` array
+- Result: ["Alice", "Bob", "Charlie", "Diana"] - preserving the original order
+- All four users have a `name` property, so no `null` values appear in the result
 
 ### Handling Missing Properties
 
@@ -50,7 +54,12 @@ This extracts the `name` property from each user object, creating an array of na
 map(&price, products)
 ```
 
-Notice how `map()` includes `null` for the mouse that has no price, maintaining the array length and element positions.
+**Understanding null preservation:**
+- Result: [999, null, 79, 299] - exactly 4 elements, same as input array
+- The Mouse (index 1) has no `price` property, so `map()` inserts `null`
+- This differs from projections like `products[*].price` which would return [999, 79, 299]
+- Element positions are preserved: Laptop=0, Mouse=1, Keyboard=2, Monitor=3
+- This behavior is crucial when you need to maintain correspondence between arrays
 
 ## Advanced Use Cases
 
@@ -72,7 +81,32 @@ map(&{
 }, employees)
 ```
 
-This creates new objects for each employee with transformed and renamed fields.
+**What this transformation accomplishes:**
+
+1. **`join(' ', [firstName, lastName])`** combines first and last names with a space:
+   - "John" + " " + "Doe" = "John Doe"
+   - "Jane" + " " + "Smith" = "Jane Smith"
+   - "Bob" + " " + "Johnson" = "Bob Johnson"
+
+2. **Field renaming and restructuring**:
+   - `annualSalary: salary` renames the field for clarity
+   - `dept: department` shortens the field name
+   - `fullName` creates a new computed field
+
+3. **Result structure** - each employee becomes:
+   ```
+   [
+     {"fullName": "John Doe", "annualSalary": 75000, "dept": "Engineering"},
+     {"fullName": "Jane Smith", "annualSalary": 82000, "dept": "Marketing"},
+     {"fullName": "Bob Johnson", "annualSalary": 68000, "dept": "Engineering"}
+   ]
+   ```
+
+**Real-world applications:**
+- **API response formatting**: Transform internal data structure for external consumption
+- **Report generation**: Prepare data for display with computed fields and cleaner names
+- **Data export**: Restructure database records for CSV/Excel export
+- **Frontend data preparation**: Format backend data for UI components
 
 ### Mathematical Operations
 
@@ -93,7 +127,31 @@ map(&{
 }, measurements)
 ```
 
-This converts temperature measurements from Celsius to Fahrenheit using arithmetic operators while preserving other data.
+**What this mathematical transformation does:**
+
+1. **Temperature conversion formula**: `celsius * 1.8 + 32`
+   - 0°C → (0 × 1.8) + 32 = 32°F (freezing point)
+   - 25°C → (25 × 1.8) + 32 = 77°F (room temperature)
+   - 100°C → (100 × 1.8) + 32 = 212°F (boiling point)
+   - -10°C → (-10 × 1.8) + 32 = 14°F (below freezing)
+
+2. **Data preservation**: Original Celsius values and humidity are kept alongside the computed Fahrenheit values
+
+3. **Result structure**:
+   ```
+   [
+     {"celsius": 0, "fahrenheit": 32, "humidity": 45},
+     {"celsius": 25, "fahrenheit": 77, "humidity": 60},
+     {"celsius": 100, "fahrenheit": 212, "humidity": 80},
+     {"celsius": -10, "fahrenheit": 14, "humidity": 30}
+   ]
+   ```
+
+**Real-world applications:**
+- **IoT sensor data**: Convert temperature readings for different regional displays
+- **Weather APIs**: Provide temperature in multiple units for international users
+- **Scientific data processing**: Unit conversions in research datasets
+- **Manufacturing systems**: Convert measurements between metric and imperial systems
 
 ### Array Flattening
 
@@ -126,7 +184,7 @@ The `[]` (flatten) operator can be used with `map()` to flatten each sub-array i
       "shipping": {"address": {"city": "Seattle", "state": "WA"}}
     },
     {
-      "id": "ord_2", 
+      "id": "ord_2",
       "customer": {"name": "Bob", "tier": "standard"},
       "items": [{"name": "mouse", "price": 25}, {"name": "keyboard", "price": 75}],
       "shipping": {"address": {"city": "Portland", "state": "OR"}}
@@ -143,7 +201,39 @@ map(&{
 }, orders)
 ```
 
-This demonstrates extracting and computing values from deeply nested structures.
+**What this nested extraction accomplishes:**
+
+1. **Direct field access**: `id` → `orderId` (simple field copy)
+
+2. **Single-level nesting**: `customer.name` → `customerName`
+   - Extracts "Alice" from `{"name": "Alice", "tier": "premium"}`
+   - Extracts "Bob" from `{"name": "Bob", "tier": "standard"}`
+
+3. **Array aggregation**: `length(items)` → `itemCount`
+   - Order 1: 1 item (laptop)
+   - Order 2: 2 items (mouse + keyboard)
+
+4. **Array computation**: `sum(items[*].price)` → `totalValue`
+   - Order 1: sum([999]) = 999
+   - Order 2: sum([25, 75]) = 100
+
+5. **Deep nesting**: `shipping.address.city` → `shippingCity`
+   - Navigates through shipping → address → city
+   - Extracts "Seattle" and "Portland"
+
+**Result structure**:
+```
+[
+  {"orderId": "ord_1", "customerName": "Alice", "itemCount": 1, "totalValue": 999, "shippingCity": "Seattle"},
+  {"orderId": "ord_2", "customerName": "Bob", "itemCount": 2, "totalValue": 100, "shippingCity": "Portland"}
+]
+```
+
+**Real-world applications:**
+- **E-commerce analytics**: Flatten complex order data for reporting dashboards
+- **Invoice generation**: Extract billing information from nested customer/order structures
+- **Shipping logistics**: Aggregate order details for fulfillment systems
+- **Customer insights**: Combine customer, order, and shipping data for analysis
 
 ### Processing Arrays Within Objects
 
