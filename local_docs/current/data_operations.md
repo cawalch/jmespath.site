@@ -40,6 +40,14 @@ Mathematical calculations directly within your queries:
 - **Data Analysis**: Calculate percentages, ratios, and statistical measures
 - **Pagination Logic**: Determine page counts, ranges, and navigation states
 
+### Mathematical Functions
+Advanced mathematical and statistical operations for data analysis:
+
+- **Core Math Functions**: Absolute values, rounding with `abs()`, `ceil()`, `floor()`
+- **Statistical Analysis**: Aggregation with `sum()`, `avg()`, `max()`, `min()`
+- **Data Comparison**: Find elements by criteria using `max_by()`, `min_by()`
+- **Array Sorting**: Organize data with `sort()`, `sort_by()`, `reverse()`
+
 ## Common Use Cases
 
 **Array Slicing** is perfect for:
@@ -62,6 +70,11 @@ Mathematical calculations directly within your queries:
 - Financial and business metric computation
 - Dynamic field generation and data enrichment
 
+**Mathematical Functions** are essential for:
+- Statistical analysis and data aggregation
+- Finding optimal values and sorting data
+- Advanced numerical processing and analysis
+
 ## Quick Reference
 
 ```jmespath
@@ -76,6 +89,9 @@ trim(upper(name)), split(email, '@')[1], join(' ', [first, last])
 
 // Arithmetic - calculate totals and percentages
 price * quantity, (revenue - costs) / revenue * `100`
+
+// Mathematical functions - statistical analysis and sorting
+sum(sales), avg(scores), max_by(employees, &salary), sort_by(products, &price)
 ```
 
 These operations form the core toolkit for data manipulation in JMESPath. Each type provides specialized functions optimized for working with specific data structures, enabling efficient and readable data transformations.
