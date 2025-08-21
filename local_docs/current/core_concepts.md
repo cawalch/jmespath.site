@@ -31,6 +31,14 @@ Master techniques for cleaning and validating JSON data:
 - **Data Sanitization**: Clean API responses and prepare data for storage or display
 - **Conditional Processing**: Apply different logic based on data presence and validity
 
+### Type Checking & Validation
+Ensure data integrity and handle diverse input safely:
+
+- **Type Detection**: Use `type()` to identify and validate data types
+- **Length Validation**: Check sizes with `length()` for strings, arrays, and objects
+- **Type Conversion**: Safely convert between types with `to_string()`, `to_number()`, `to_array()`
+- **Error Handling**: Provide fallbacks with `not_null()` and defensive programming patterns
+
 ## When to Use These Concepts
 
 **Filter Expressions** are essential when you need to:
@@ -48,6 +56,11 @@ Master techniques for cleaning and validating JSON data:
 - Preparing data for database storage
 - Generating clean exports and reports
 
+**Type Checking & Validation** is essential for:
+- Ensuring data integrity in API processing
+- Handling diverse input sources safely
+- Building robust data transformation pipelines
+
 ## Quick Reference
 
 ```jmespath
@@ -60,6 +73,9 @@ let $dept = department.name in
 
 // Remove null and empty values from objects
 from_items(items(user_data)[?@[1] && @[1] != ''])
+
+// Type checking and safe conversion
+type(user.age) == 'number' && user.age || to_number(user.age) || `0`
 ```
 
 These core concepts work together to provide a solid foundation for all JMESPath operations. Master these fundamentals before moving on to advanced data type operations and specialized functions.
