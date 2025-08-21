@@ -1,7 +1,9 @@
 ---
-title: group_by
-nav_label: group_by
-nav_order: 4
+title: group_by() Function
+nav_label: group_by() Function
+nav_order: 31
+id: group-by-function
+parent: advanced-features
 ---
 
 # group_by() Function

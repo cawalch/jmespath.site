@@ -1,6 +1,7 @@
 ---
 title: Home
 nav_order: 1
+id: home
 ---
 
 ![Logo](./current/logo.svg "JMESPath Community Edition")

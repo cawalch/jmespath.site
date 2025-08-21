@@ -1,6 +1,9 @@
 ---
 title: Advanced Function Composition
-nav_order: 3
+nav_label: Function Composition
+nav_order: 32
+id: function-composition
+parent: advanced-features
 ---
 
 # Advanced Function Composition

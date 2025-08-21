@@ -1,7 +1,9 @@
 ---
 title: String Functions Deep Dive
 nav_label: String Functions
-nav_order: 6
+nav_order: 22
+id: string-functions
+parent: data-operations
 ---
 
 # String Functions Deep Dive
