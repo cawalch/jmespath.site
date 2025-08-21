@@ -1,7 +1,9 @@
 ---
 title: Array Slicing & Advanced Indexing
-nav_label: Array Slicing
-nav_order: 7
+nav_label: Array Slicing & Indexing
+nav_order: 20
+id: array-slicing
+parent: data-operations
 ---
 
 # Array Slicing & Advanced Indexing

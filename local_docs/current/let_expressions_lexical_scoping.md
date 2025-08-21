@@ -1,7 +1,9 @@
 ---
 title: Let Expressions & Lexical Scoping
 nav_label: Let Expressions
-nav_order: 8
+nav_order: 12
+id: let-expressions
+parent: core-concepts
 ---
 
 # Let Expressions & Lexical Scoping

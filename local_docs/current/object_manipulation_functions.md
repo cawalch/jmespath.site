@@ -1,7 +1,9 @@
 ---
 title: Object Manipulation Functions
 nav_label: Object Functions
-nav_order: 9
+nav_order: 21
+id: object-functions
+parent: data-operations
 ---
 
 # Object Manipulation Functions

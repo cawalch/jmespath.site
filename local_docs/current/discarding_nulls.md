@@ -1,7 +1,9 @@
 ---
-title: Discarding nulls
-nav_label: Discarding nulls
-nav_order: 2
+title: Discarding Nulls
+nav_label: Discarding Nulls
+nav_order: 10
+id: discarding-nulls
+parent: core-concepts
 ---
 
 # Discarding Null Values

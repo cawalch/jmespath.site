@@ -1,7 +1,9 @@
 ---
 title: Filter Expressions Deep Dive
 nav_label: Filter Expressions
-nav_order: 10
+nav_order: 11
+id: filter-expressions
+parent: core-concepts
 ---
 
 # Filter Expressions Deep Dive

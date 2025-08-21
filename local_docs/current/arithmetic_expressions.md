@@ -1,7 +1,9 @@
 ---
 title: Arithmetic Expressions
 nav_label: Arithmetic Expressions
-nav_order: 6
+nav_order: 23
+id: arithmetic-expressions
+parent: data-operations
 ---
 
 # Arithmetic Expressions

@@ -1,7 +1,9 @@
 ---
-title: map
-nav_label: map
-nav_order: 5
+title: map() Function
+nav_label: map() Function
+nav_order: 30
+id: map-function
+parent: advanced-features
 ---
 
 # map() Function
